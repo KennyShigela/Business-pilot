@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Pilot — Business Operating System</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Apache ECharts CDN for rich financial & time series visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Persistent Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-badge">
+          <span>Business Pilot</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Data</div>
+        <a class="nav-item" data-view="datasources">
+          Upload an Excel file or paste a Google Sheets link
+        </a>
+
+        <div class="nav-section-title">Business</div>
+        <a class="nav-item active" data-view="dashboard">
+          Overview
+        </a>
+        <a class="nav-item" data-view="analytics">
+          Analytics
+        </a>
+
+        <div class="nav-section-title">Operations</div>
+        <a class="nav-item" data-view="sales">
+          Sales
+        </a>
+        <a class="nav-item" data-view="customers">
+          Customers
+        </a>
+        <a class="nav-item" data-view="inventory">
+          Inventory
+          <span class="badge" id="badge-inventory-warn">0</span>
+        </a>
+        <a class="nav-item" data-view="expenses">
+          Expenses
+        </a>
+
+        <div class="nav-section-title">Finance</div>
+        <a class="nav-item" data-view="cashflow">
+          Cash Flow
+        </a>
+        <a class="nav-item" data-view="forecasts">
+          Forecasts
+        </a>
+
+        <div class="nav-section-title">Intelligence</div>
+        <a class="nav-item" data-view="ai-analyst">
+          AI Analyst
+        </a>
+        <a class="nav-item" data-view="alerts">
+          Alerts
+          <span class="badge" id="badge-alerts-count">0</span>
+        </a>
+        <a class="nav-item" data-view="reports">
+          Reports
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="company-chip">
+          <div class="company-avatar" id="sidebar-company-avatar">L</div>
+          <div class="company-meta">
+            <div class="name" id="sidebar-company-name">LexCorp</div>
+            <div class="sub" id="sidebar-company-sub">Enterprise · TZS</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="search-bar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted); flex-shrink:0;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" placeholder="Search invoices, products, customers..." id="global-search">
+        </div>
+
+        <div class="header-actions">
+          <button class="btn-primary" id="btn-new-workspace" style="font-size:0.82rem; padding:0.45rem 0.85rem; display:inline-flex; align-items:center; gap:0.35rem;" title="Register new company workspace">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Register Company
+          </button>
+          <div class="user-badge" id="header-user-badge" title="Click to upload profile photo">
+            <div class="user-avatar" id="header-user-avatar">A</div>
+            <span id="header-user-name">Alex</span>
+            <input type="file" id="user-avatar-input" accept="image/*" style="display:none;">
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Body -->
+      <main class="content-body">
+        
+        <!-- ============================================== -->
+        <!-- SCREEN 02: EXECUTIVE DASHBOARD (OVERVIEW)       -->
+        <!-- ============================================== -->
+        <section id="view-dashboard" class="view-panel active">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 id="dash-greeting">Good morning</h1>
+              <p>Here's what's happening with your business.</p>
+            </div>
+            <div class="header-controls">
+              <button class="btn-secondary" onclick="window.print()">Export Report</button>
+            </div>
+          </div>
+
+          <!-- 4 Core Executive KPI Cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Revenue</div>
+              <div class="kpi-value" id="kpi-rev-val">TZS 31.7M</div>
+              <div class="kpi-sub">
+                <span class="trend-up" id="kpi-rev-growth">↑ 1.8%</span>
+                <span class="trend-sub">vs last month</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">Net Profit</div>
+              <div class="kpi-value" id="kpi-profit-val">TZS -44.4M</div>
+              <div class="kpi-sub">
+                <span class="trend-down" id="kpi-profit-margin">Margin: -139%</span>
+                <span class="trend-sub">post-OPEX</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">Expenses</div>
+              <div class="kpi-value" id="kpi-exp-val">TZS 52.8M</div>
+              <div class="kpi-sub">
+                <span class="trend-down" id="kpi-exp-growth">↑ 6.1%</span>
+                <span class="trend-sub">higher OPEX</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label">Cash Position</div>
+              <div class="kpi-value" id="kpi-cash-val">TZS -29.3M</div>
+              <div class="kpi-sub">
+                <span class="trend-down" id="kpi-cash-runway">⚠ 0 days runway</span>
+                <span class="trend-sub">runway cliff</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Business Summary Card -->
+          <div class="ai-summary-card">
+            <div class="ai-badge-header">
+              <span>✦</span> AI BUSINESS SUMMARY
+            </div>
+            <div class="ai-summary-text" id="dash-ai-summary">
+              Loading verified intelligence summary...
+            </div>
+            <a class="ai-explore-link" onclick="switchView('analytics')">Explore deep analysis →</a>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="card-header">
+                <div class="card-title">Business Performance: Revenue & Profit Trend</div>
+                <div class="trend-sub">Trailing Months (TZS)</div>
+              </div>
+              <div id="chart-rev-trend" class="chart-container"></div>
+            </div>
+
+            <div class="chart-card">
+              <div class="card-header">
+                <div class="card-title">Operating Expenses Breakdown</div>
+                <div class="trend-sub">By Category</div>
+              </div>
+              <div id="chart-expense-donut" class="chart-container"></div>
+            </div>
+          </div>
+
+          <!-- Attention Required Section -->
+          <div class="attention-card">
+            <div class="card-header">
+              <div class="card-title">Attention Required</div>
+              <span class="trend-sub" id="dash-alerts-count">3 items require review</span>
+            </div>
+            <div id="dash-alerts-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 03: ANALYTICS (P&L & MARGINS)            -->
+        <!-- ============================================== -->
+        <section id="view-analytics" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Profit & Loss Statement (P&L)</h1>
+              <p>Deterministic financial bridge from gross sales to bottom-line profit.</p>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-bottom:1.5rem;">
+            <div class="card-header">
+              <div class="card-title">P&L Financial Margin Bridge</div>
+            </div>
+            <div id="chart-pnl-bridge" class="chart-container" style="height:270px;"></div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table" id="pnl-table">
+              <thead>
+                <tr>
+                  <th>Financial Line Item</th>
+                  <th>Amount (TZS)</th>
+                  <th>% of Revenue</th>
+                  <th>Classification</th>
+                </tr>
+              </thead>
+              <tbody id="pnl-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 04: SALES (OPERATIONAL ORDERS)          -->
+        <!-- ============================================== -->
+        <section id="view-sales" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Sales & Orders</h1>
+              <p>Searchable invoices, items, and customer transaction logs.</p>
+            </div>
+            <div class="header-controls">
+              <input type="text" placeholder="Filter by invoice/customer..." class="btn-secondary" id="sales-filter" style="width:240px;">
+            </div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table" id="sales-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Customer</th>
+                  <th>Sale Date</th>
+                  <th>Total Amount</th>
+                  <th>Cost (COGS)</th>
+                  <th>Gross Profit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="sales-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 05: CUSTOMERS (PROFITABILITY & WHALES)  -->
+        <!-- ============================================== -->
+        <section id="view-customers" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Customer Profitability</h1>
+              <p>Unit economics identifying high-margin Whales vs profit-draining accounts.</p>
+            </div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table" id="customers-table">
+              <thead>
+                <tr>
+                  <th>Customer Name</th>
+                  <th>Type</th>
+                  <th>Orders</th>
+                  <th>Total Revenue</th>
+                  <th>Gross Profit</th>
+                  <th>Margin %</th>
+                  <th>Classification</th>
+                </tr>
+              </thead>
+              <tbody id="customers-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 06: INVENTORY (HEALTH & DEAD STOCK)     -->
+        <!-- ============================================== -->
+        <section id="view-inventory" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Inventory & Stock Health</h1>
+              <p>Reconstructed stock from movements, reorder warnings, and inactive dead stock.</p>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Inventory Value</div>
+              <div class="kpi-value" id="inv-total-val">TZS 0</div>
+              <div class="kpi-sub">Cost basis on hand</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Low Stock Warnings</div>
+              <div class="kpi-value" id="inv-low-count" style="color:var(--warning);">0</div>
+              <div class="kpi-sub">At or below reorder level</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Locked Capital in Dead Stock</div>
+              <div class="kpi-value" id="inv-dead-val" style="color:var(--danger);">TZS 0</div>
+              <div class="kpi-sub">No sales in >60 days</div>
+            </div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table" id="inventory-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Product Name</th>
+                  <th>Stock on Hand</th>
+                  <th>Reorder Level</th>
+                  <th>Unit Cost</th>
+                  <th>Selling Price</th>
+                  <th>Total Stock Value</th>
+                  <th>Health Status</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 07: EXPENSES                            -->
+        <!-- ============================================== -->
+        <section id="view-expenses" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Operating Expenses & Cost Centers</h1>
+              <p>Automated category consolidation, multi-line auto-summing, and detailed transaction ledger.</p>
+            </div>
+            <div class="header-controls">
+              <button class="btn-secondary" onclick="loadExpensesData()">↻ Refresh Data</button>
+            </div>
+          </div>
+
+          <!-- Expenses KPI Summary Cards -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Operating Expenses (OPEX)</div>
+              <div class="kpi-value" id="exp-total-val">TZS 0</div>
+              <div class="kpi-sub">
+                <span class="trend-sub" id="exp-growth-sub">All cost centers consolidated</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Auto-Summed Categories</div>
+              <div class="kpi-value" id="exp-cats-count" style="color:var(--brand-primary);">0</div>
+              <div class="kpi-sub">Consolidated recurring expense accounts</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Largest Cost Center</div>
+              <div class="kpi-value" id="exp-top-category" style="font-size: 1.3rem;">-</div>
+              <div class="kpi-sub" id="exp-top-share">Dominant budget driver</div>
+            </div>
+          </div>
+
+          <!-- Section 1: Auto-Summed Categories Breakdown -->
+          <div class="card-header" style="margin-top: 1rem; margin-bottom: 0.5rem;">
+            <div class="card-title">Consolidated Cost Centers (Auto-Summed by Category)</div>
+            <span class="trend-sub">Aggregates recurring expenses across multiple ledger rows (e.g. Insurance, Utilities, Rent)</span>
+          </div>
+          <div class="data-table-container">
+            <table class="data-table" id="expenses-categories-table">
+              <thead>
+                <tr>
+                  <th>Category Name</th>
+                  <th>Classification</th>
+                  <th>Entries Auto-Summed</th>
+                  <th>Total Consolidated Amount</th>
+                  <th>% of Total OPEX</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-categories-tbody">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section 2: Detailed Transaction Records -->
+          <div class="card-header" style="margin-top: 2rem; margin-bottom: 0.5rem;">
+            <div class="card-title">Recent Individual Expense Records (Audit Trail)</div>
+            <span class="trend-sub">Raw ledger transactions mapped from Excel / Google Sheets</span>
+          </div>
+          <div class="data-table-container">
+            <table class="data-table" id="expenses-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Description / Ref</th>
+                  <th>Amount</th>
+                  <th>Payment Method</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 08: CASH FLOW                           -->
+        <!-- ============================================== -->
+        <section id="view-cashflow" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Cash Flow & Runway</h1>
+              <p>Direct cash collections, disbursements, and 60-day projected liquidity.</p>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="kpi-card">
+              <div class="kpi-label">Current Cash Balance</div>
+              <div class="kpi-value" id="cash-current-val">TZS 0</div>
+              <div class="kpi-sub">Collections minus disbursements</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Accounts Receivable (AR)</div>
+              <div class="kpi-value" id="cash-ar-val">TZS 0</div>
+              <div class="kpi-sub" id="cash-unpaid-invoices">Unpaid customer invoices</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Monthly Burn Rate</div>
+              <div class="kpi-value" id="cash-burn-val">TZS 0</div>
+              <div class="kpi-sub" id="cash-runway-countdown">Runway: 0 days</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header">
+              <div class="card-title">60-Day Projected Cash Balance</div>
+              <div class="trend-sub">Expected Liquidity Curve</div>
+            </div>
+            <div id="chart-cash-projection" class="chart-container"></div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 10: AI ANALYST                          -->
+        <!-- ============================================== -->
+        <section id="view-ai-analyst" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>✦ AI Business Analyst</h1>
+              <p>Ask anything about your business data. Answers are verified by deterministic math.</p>
+            </div>
+            <div class="header-controls" style="display:flex; align-items:center; gap:0.5rem;">
+              <span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; font-size:0.75rem; padding:4px 9px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                Gemini 1.5 Flash Connected
+              </span>
+              <button class="btn-secondary" id="btn-toggle-gemini-config" style="font-size:0.75rem; padding:0.35rem 0.65rem;" onclick="toggleGeminiSettings()">API Settings & Costs</button>
+            </div>
+          </div>
+
+          <!-- Gemini Configuration & Pricing Breakdown -->
+          <div id="gemini-config-panel" style="display:none; margin-bottom:1.25rem; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:1.2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+              <h3 style="margin:0; font-size:0.95rem; color:#0f172a;">Google Gemini API Integration & Pricing</h3>
+              <button type="button" class="btn-secondary" style="font-size:0.75rem; padding:0.2rem 0.5rem;" onclick="toggleGeminiSettings()">Close</button>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem;">
+                <div style="font-weight:700; color:#16a34a; font-size:0.82rem; margin-bottom:0.35rem;">GOOGLE AI STUDIO FREE TIER</div>
+                <div style="font-size:0.82rem; color:#334155; line-height:1.4;">
+                  <strong>100% Free:</strong> Up to <strong>15 Requests/Min</strong> and <strong>1,500 Requests/Day</strong> at zero cost ($0.00). Ideal for standard business reporting.
+                </div>
+              </div>
+              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem;">
+                <div style="font-weight:700; color:#2563eb; font-size:0.82rem; margin-bottom:0.35rem;">PAY-AS-YOU-GO RATE</div>
+                <div style="font-size:0.82rem; color:#334155; line-height:1.4;">
+                  <strong>Ultra-Low Cost:</strong> Gemini 1.5 Flash input is <strong>$0.075 / 1M tokens</strong> (~$0.0001 per financial question).
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="password" id="gemini-api-key-input" placeholder="Paste your Gemini API Key (or leave blank to use server environment key)..." style="flex:1; padding:0.5rem 0.75rem; font-size:0.85rem; border:1px solid #cbd5e1; border-radius:6px;">
+              <button class="btn-primary" style="font-size:0.82rem; padding:0.5rem 0.9rem;" onclick="saveGeminiApiKey()">Save Key</button>
+              <button class="btn-secondary" style="font-size:0.82rem; padding:0.5rem 0.8rem;" onclick="clearGeminiApiKey()">Clear</button>
+            </div>
+            <div id="gemini-key-status" style="font-size:0.75rem; color:#64748b; margin-top:0.4rem;">
+              Key is stored locally in your browser session and encrypted over HTTPS.
+            </div>
+          </div>
+
+          <div class="ai-summary-card" style="background:#fff;">
+            <div class="ai-badge-header">
+              <span>✦</span> ASK YOUR BUSINESS
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+              <input type="text" id="ai-query-input" class="btn-secondary" style="flex:1; padding:0.65rem;" placeholder="e.g. Why did profit fall this month? Or: Who are our top customers?">
+              <button class="btn-primary" id="btn-submit-ai">Ask AI</button>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+              <span class="trend-sub">Suggested prompts:</span>
+              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.5rem;" onclick="askAI('Why did profit decrease this month?')">Why did profit fall?</button>
+              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.25rem;" onclick="askAI('Which products are low on stock?')">Low stock items?</button>
+              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.25rem;" onclick="askAI('Who are our most profitable customers?')">Top profitable customers?</button>
+            </div>
+
+            <div id="ai-answer-box" style="display:none; padding:1rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+              <div style="font-weight:600; margin-bottom:0.4rem; color:#0f172a;" id="ai-answer-title">✦ Analysis</div>
+              <div style="font-size:0.9rem; line-height:1.6; color:#334155;" id="ai-answer-content"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 09: FORECASTS                           -->
+        <!-- ============================================== -->
+        <section id="view-forecasts" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Sales & Revenue Forecasting</h1>
+              <p>Time-series damped exponential smoothing with 80% confidence interval bands.</p>
+            </div>
+            <div class="header-controls">
+              <span class="badge-status badge-healthy" id="forecast-conf-badge">Confidence: 85%</span>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-bottom:1.5rem;">
+            <div class="card-header">
+              <div class="card-title">Revenue Projections: Historical vs 3-Month Horizon</div>
+              <div class="trend-sub">Expected Range (Upper & Lower Confidence Bounds)</div>
+            </div>
+            <div id="chart-forecast-bands" class="chart-container" style="height:320px;"></div>
+          </div>
+
+          <!-- Forecast Drivers -->
+          <div class="attention-card" style="margin-bottom:1.5rem;">
+            <div class="card-header">
+              <div class="card-title">What Drives This Forecast?</div>
+              <span class="trend-sub">Deterministic Model Factors</span>
+            </div>
+            <div id="forecast-drivers-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- SKU Demand Stockout Triggers -->
+          <div class="data-table-container">
+            <div class="card-header" style="padding:1rem 1rem 0.5rem 1rem;">
+              <div class="card-title">SKU Demand Velocity & Stockout Countdown</div>
+            </div>
+            <table class="data-table" id="stockout-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Product</th>
+                  <th>Current Stock</th>
+                  <th>Daily Velocity</th>
+                  <th>Stockout In</th>
+                  <th>Recommended Reorder</th>
+                  <th>Urgency</th>
+                </tr>
+              </thead>
+              <tbody id="stockout-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 11: ALERTS CENTER                       -->
+        <!-- ============================================== -->
+        <section id="view-alerts" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Alerts & Early Warning Center</h1>
+              <p>Proactive risk detection for cash cliffs, inventory stockouts, and expense spikes.</p>
+            </div>
+            <div class="header-controls">
+              <button class="btn-secondary" onclick="filterAlerts('ALL')">All</button>
+              <button class="btn-secondary" onclick="filterAlerts('CRITICAL')">Critical</button>
+              <button class="btn-secondary" onclick="filterAlerts('WARNING')">Warning</button>
+            </div>
+          </div>
+          <div class="attention-card" id="full-alerts-list">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 12: MANAGEMENT REPORTS                  -->
+        <!-- ============================================== -->
+        <section id="view-reports" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Executive Management Reports</h1>
+              <p>One-click export of formal executive briefings, P&L bridges, and Board Pack PDFs.</p>
+            </div>
+            <div class="header-controls">
+              <a href="/api/reports/pdf?company_id=company-abc-supermarket-001" id="report-pdf-link" class="btn-primary" target="_blank" download="BusinessPilot_Board_Pack.pdf" style="display:inline-flex; align-items:center; gap:0.45rem; text-decoration:none;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                  <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+                  <polyline points="7 11 12 16 17 11"></polyline>
+                  <line x1="12" y1="4" x2="12" y2="16"></line>
+                </svg>
+                <span>Download Board Pack PDF</span>
+              </a>
+              <a href="/api/reports/html?company_id=company-abc-supermarket-001" id="report-html-link" class="btn-secondary" target="_blank" style="text-decoration:none;">
+                View HTML Briefing
+              </a>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:1.5rem;">
+            <div class="kpi-card">
+              <div class="kpi-label">Report Format</div>
+              <div class="kpi-value" style="font-size:1.2rem;">Executive Board Pack</div>
+              <div class="kpi-sub">ReportLab Vector PDF (Print Ready)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Sections Included</div>
+              <div class="kpi-value" style="font-size:1.2rem;">7 Core Modules</div>
+              <div class="kpi-sub">P&L, Cash Flow, Risk Matrix, Whales</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Auto-Schedule</div>
+              <div class="kpi-value" style="font-size:1.2rem;">Every 1st of Month</div>
+              <div class="kpi-sub">→ management@company.com</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header">
+              <div class="card-title">Live Report Document Preview</div>
+            </div>
+            <iframe id="report-preview-frame" src="/api/reports/html?company_id=company-abc-supermarket-001" style="width:100%; height:450px; border:1px solid #e2e8f0; border-radius:6px;"></iframe>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 13, 14, 15: DATA SOURCES & AI MAPPING   -->
+        <!-- ============================================== -->
+        <section id="view-datasources" class="view-panel">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1>Upload an Excel file or paste a Google Sheets link</h1>
+              <p>Upload your business Excel spreadsheet (.xlsx, .xls, .csv) or paste a Google Sheets link to automatically detect columns and map data.</p>
+            </div>
+          </div>
+
+          <!-- Onboarding Welcome Card (shown for newly registered empty company) -->
+          <div class="onboarding-welcome-card" id="onboarding-welcome-card" style="display:none; margin-bottom:1.5rem; background:linear-gradient(135deg, #1e293b, #0f172a); color:#fff; border-radius:12px; padding:1.5rem; border:1px solid #334155;">
+            <div>
+              <h2 style="font-size:1.35rem; font-weight:700; margin:0 0 0.35rem 0; color:#fff;" id="onboarding-comp-title">Workspace Ready</h2>
+              <p style="color:#94a3b8; font-size:0.88rem; margin:0;">
+                Upload your business spreadsheet below. Business Pilot will auto-detect your data and generate your Executive Dashboard, P&L, Cash Flow, and AI Analyst.
+              </p>
+            </div>
+          </div>
+
+          <!-- Upload Mode Tabs -->
+          <div class="upload-tabs">
+            <button class="btn-tab active" id="tab-btn-file" onclick="switchUploadTab('file')" style="display:inline-flex; align-items:center; gap:0.5rem;">
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;">
+                <rect x="9" y="4" width="19" height="24" rx="2.5" fill="#107C41"/>
+                <path d="M9 10h19M9 16h19M9 22h19M18 4v24" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.2"/>
+                <rect x="4" y="8" width="16" height="16" rx="2.5" fill="#107C41" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.2))"/>
+                <path d="M8 12.2h2l1.6 3 1.6-3h2l-2.6 4.3 2.7 4.5h-2.1l-1.7-3.2-1.7 3.2H7.8l2.8-4.5L8 12.2z" fill="#ffffff"/>
+              </svg>
+              <span>Excel / CSV File</span>
+            </button>
+            <button class="btn-tab" id="tab-btn-gsheet" onclick="switchUploadTab('gsheet')" style="display:inline-flex; align-items:center; gap:0.5rem;">
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; flex-shrink:0;">
+                <path d="M6 3C4.89543 3 4 3.89543 4 5V27C4 28.1046 4.89543 29 6 29H26C27.1046 29 28 28.1046 28 27V11L20 3H6Z" fill="#0F9D58"/>
+                <path d="M20 3L28 11H22C20.8954 11 20 10.1046 20 9V3Z" fill="#87CEAC"/>
+                <rect x="8.5" y="13.5" width="15" height="11" rx="1.2" fill="#ffffff"/>
+                <line x1="8.5" y1="17.2" x2="23.5" y2="17.2" stroke="#0F9D58" stroke-width="1.2"/>
+                <line x1="8.5" y1="20.8" x2="23.5" y2="20.8" stroke="#0F9D58" stroke-width="1.2"/>
+                <line x1="14" y1="13.5" x2="14" y2="24.5" stroke="#0F9D58" stroke-width="1.2"/>
+              </svg>
+              <span>Google Sheets Link</span>
+            </button>
+          </div>
+
+          <!-- Tab 1: Drag and Drop Upload -->
+          <div id="upload-panel-file">
+            <div class="upload-dropzone" id="dropzone">
+              <svg width="56" height="56" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:0.75rem;">
+                <rect x="9" y="4" width="19" height="24" rx="2.5" fill="#107C41"/>
+                <path d="M9 10h19M9 16h19M9 22h19M18 4v24" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.2"/>
+                <rect x="4" y="8" width="16" height="16" rx="2.5" fill="#185C37"/>
+                <rect x="4" y="8" width="16" height="16" rx="2.5" fill="#107C41" filter="drop-shadow(0 3px 6px rgba(0,0,0,0.25))"/>
+                <path d="M8 12.2h2l1.6 3 1.6-3h2l-2.6 4.3 2.7 4.5h-2.1l-1.7-3.2-1.7 3.2H7.8l2.8-4.5L8 12.2z" fill="#ffffff"/>
+              </svg>
+              <h3>Upload your business spreadsheet</h3>
+              <p>Drag & drop Excel (.xlsx, .xls) or CSV file here, or click to browse</p>
+              <div style="font-size:0.8rem; color:#64748b; margin-top:0.4rem;">
+                Compatible with multi-tab sheets (Sales, Expenses, Inventory, Customers)
+              </div>
+              <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none;">
+            </div>
+          </div>
+
+          <!-- Tab 2: Google Sheets Link -->
+          <div id="upload-panel-gsheet" style="display:none; margin-bottom:1.5rem;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.5rem;">
+              <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                  <path d="M6 3C4.89543 3 4 3.89543 4 5V27C4 28.1046 4.89543 29 6 29H26C27.1046 29 28 28.1046 28 27V11L20 3H6Z" fill="#0F9D58"/>
+                  <path d="M20 3L28 11H22C20.8954 11 20 10.1046 20 9V3Z" fill="#87CEAC"/>
+                  <rect x="8.5" y="13.5" width="15" height="11" rx="1.2" fill="#ffffff"/>
+                  <line x1="8.5" y1="17.2" x2="23.5" y2="17.2" stroke="#0F9D58" stroke-width="1.2"/>
+                  <line x1="8.5" y1="20.8" x2="23.5" y2="20.8" stroke="#0F9D58" stroke-width="1.2"/>
+                  <line x1="14" y1="13.5" x2="14" y2="24.5" stroke="#0F9D58" stroke-width="1.2"/>
+                </svg>
+                <div>
+                  <h3 style="font-size:1.1rem; margin:0; font-weight:600;">Import from Google Sheets</h3>
+                  <p style="font-size:0.85rem; color:#64748b; margin:2px 0 0 0;">
+                    Paste the share link to your public or viewable Google Sheet
+                  </p>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                <input type="url" id="gsheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit" style="flex:1; padding:0.65rem 0.85rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                <button class="btn-primary" id="btn-fetch-gsheet" onclick="handleGoogleSheetsImport()" style="display:inline-flex; align-items:center; gap:0.45rem; white-space:nowrap;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path>
+                    <polyline points="7 11 12 16 17 11"></polyline>
+                    <line x1="12" y1="4" x2="12" y2="16"></line>
+                  </svg>
+                  <span>Get Sheet</span>
+                </button>
+              </div>
+
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem; font-size:0.82rem; color:#475569;">
+                <strong style="display:inline-flex; align-items:center; gap:0.35rem; color:#1e293b;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                    <path d="M9 18h6"/>
+                    <path d="M10 21h4"/>
+                    <path d="M9 18v-2.5a6.5 6.5 0 0 1-3-5.5 6 6 0 1 1 12 0 6.5 6.5 0 0 1-3 5.5V18z"/>
+                    <path d="M10 13l2-3 2 3"/>
+                  </svg>
+                  Google Sheets Tips:
+                </strong>
+                <ol style="margin:4px 0 0 0; padding-left:1.2rem; line-height:1.5;">
+                  <li>Make sure your sheet link sharing is set to <strong>"Anyone with the link can view"</strong>.</li>
+                  <li>Alternatively, in Google Sheets click: <strong>File ➔ Download ➔ Microsoft Excel (.xlsx)</strong> and drop it into the <em>Excel / CSV File</em> tab above!</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mapping Review Card (Revealed after upload) -->
+          <div class="mapping-card" id="mapping-card" style="display:none;">
+            <div class="card-header">
+              <div class="card-title">Review Data Mapping</div>
+              <span class="badge-status badge-healthy" id="mapping-overall-conf">98% Confidence</span>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+              We have automatically matched your spreadsheet columns to system fields.
+            </p>
+
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="import-progress-bar"></div>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;" id="progress-status-text">
+              Ready to import.
+            </div>
+
+            <div class="data-table-container">
+              <table class="data-table" id="mapping-table">
+                <thead>
+                  <tr>
+                    <th>Your Column</th>
+                    <th></th>
+                    <th>System Field</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="mapping-table-body">
+                  <!-- Mapped columns -->
+                </tbody>
+              </table>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
+              <button class="btn-secondary" onclick="document.getElementById('mapping-card').style.display='none'">Cancel</button>
+              <button class="btn-primary" id="btn-confirm-import">Accept & Import Data</button>
+            </div>
+          </div>
+
+          <!-- Uploaded Data Sources Section -->
+          <div class="uploaded-sources-section" id="uploaded-sources-section" style="margin-top:2rem;">
+            <div class="card-header" style="margin-bottom:0.75rem;">
+              <div class="card-title">Active Data Sources and Uploaded Spreadsheets</div>
+              <span class="trend-sub" id="uploaded-files-count">0 Active Sources</span>
+            </div>
+            <div id="uploaded-sources-empty" style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:2rem; text-align:center; color:#64748b; font-size:0.9rem;">
+              0 Active Sources
+            </div>
+            <div class="data-table-container" id="uploaded-files-table-container" style="display:none;">
+              <table class="data-table" id="uploaded-files-table">
+                <thead>
+                  <tr>
+                    <th>File Name</th>
+                    <th>Type</th>
+                    <th>Sheets & Content</th>
+                    <th>Total Records</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="uploaded-files-table-body">
+                  <!-- Dynamically populated when user uploads multiple documents -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: REGISTRATION & WORKSPACE SETUP          -->
+  <!-- ============================================== -->
+  <div id="registration-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Register Your Business Workspace</h2>
+        <p>Set up your company profile in seconds. Then upload your business spreadsheet to generate executive dashboards, cash flow forecasts, and AI insights.</p>
+      </div>
+
+      <form id="registration-form" onsubmit="handleRegistrationSubmit(event)">
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label for="reg-company-name">Company Name *</label>
+            <input type="text" id="reg-company-name" required placeholder="e.g. Apex Supermarket Ltd" autofocus>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="reg-user-name">Your Full Name *</label>
+            <input type="text" id="reg-user-name" required placeholder="e.g. Kennedy">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label for="reg-email">Work Email</label>
+            <input type="email" id="reg-email" placeholder="e.g. kennedy@company.com">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="reg-currency">Primary Currency *</label>
+            <select id="reg-currency">
+              <option value="USD">USD ($) — US Dollar</option>
+              <option value="TZS" selected>TZS (Sh) — Tanzanian Shilling</option>
+              <option value="KES">KES (KSh) — Kenyan Shilling</option>
+              <option value="EUR">EUR (€) — Euro</option>
+              <option value="GBP">GBP (£) — British Pound</option>
+              <option value="ZAR">ZAR (R) — South African Rand</option>
+              <option value="NGN">NGN (₦) — Nigerian Naira</option>
+              <option value="CAD">CAD ($) — Canadian Dollar</option>
+              <option value="INR">INR (₹) — Indian Rupee</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label for="reg-business-type">Industry / Business Type</label>
+            <select id="reg-business-type">
+              <option value="Retail">Retail & Supermarket</option>
+              <option value="Wholesale">Wholesale & Distribution</option>
+              <option value="E-Commerce">E-Commerce & Online Store</option>
+              <option value="Manufacturing">Manufacturing & Production</option>
+              <option value="Services">Professional Services & Agency</option>
+              <option value="Hospitality">Hospitality & Restaurant</option>
+              <option value="Healthcare">Pharmacy & Healthcare</option>
+              <option value="Other">Other Business</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="reg-country">Country</label>
+            <input type="text" id="reg-country" value="Tanzania" placeholder="e.g. Tanzania, Kenya, USA">
+          </div>
+        </div>
+
+        <!-- Live Industry Feature Preview -->
+        <div id="reg-industry-feature-preview" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.85rem; margin-top:0.75rem; font-size:0.83rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.45rem;">
+            <span style="font-weight:700; color:#0f172a; font-size:0.82rem; text-transform:uppercase; letter-spacing:0.04em;" id="preview-industry-title">Retail & Supermarket Suite</span>
+            <span class="badge" style="background:#ecfdf5; color:#047857; font-weight:600; font-size:0.72rem; padding:2px 8px; border-radius:12px;" id="preview-industry-badge">Retail Tailored</span>
+          </div>
+          <div id="preview-industry-desc" style="color:#475569; line-height:1.45;">
+            Features enabled: POS Cash Register Tracking, SKU Reorder Matrix & Shelf Dead-Stock Alerts, Walk-in Footfall Analytics, and Product Category Margin Bridges.
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.75rem;">
+          <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:0.8rem; font-size:1rem;" id="btn-submit-register">
+            Create Business Workspace ➔
+          </button>
+          <div style="display:flex; justify-content:flex-end; align-items:center; font-size:0.85rem; color:#64748b; margin-top:0.25rem;">
+            <button type="button" class="btn-secondary" id="btn-close-modal" style="font-size:0.8rem; padding:0.3rem 0.6rem; display:none;" onclick="closeRegistrationModal()">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
