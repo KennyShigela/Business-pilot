@@ -1,0 +1,10 @@
+Date,Client,Item,Qty Sold,Selling Price,Amount Paid
+2026-09-30,Safari Hotel Dar,Coca-Cola 500ml,24,"TZS 1,200","28,800.00"
+30/09/2026,Safari Hotel Dar,Coca-Cola 500ml,24,"1,200","28,800.00"
+29-09-2026,Kennedy M.,Azam Wheat Flour 2kg,2,"4,500.00","9,000"
+28/09/2026,Mlimani Restaurant,Korie Cooking Oil 3L,6,"TZS 19,000","114,000"
+invalid-date,Unknown Walkin,LED Light Bulb 12W,1,4500,4500
+2026-09-27,Amina Said,,3,1200,3600
+2026-09-26,Zanzibar Spice Cafe,Super Basmati Rice 5kg,-5,"18,500","92,500"
+25/09/2026,John Msaki,Omo Washing Powder 1kg,1,"5,500","5,500"
+2026-09-24,Mary Muro,Dettol Antiseptic Soap 175g,4,3000,12000

@@ -1,0 +1,675 @@
+"""
+REST API and Web Server for BusinessPilot.
+Serves executive business analytics, file upload pipelines, schema mapping,
+and frontend dashboard assets.
+"""
+import os
+import sys
+import json
+import re
+import glob
+import urllib.parse
+import urllib.request
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Dict, Any, Optional
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from database.db import init_db, query_all, query_one, get_connection, generate_uuid
+from data.sample_generator import generate_abc_supermarket_dataset
+from engine.ingestion import SpreadsheetReader, StagingManager
+from engine.mapping import SchemaMapper
+from engine.quality import DataQualityAuditor
+from engine.importer import BusinessDataImporter
+from engine.analytics import BusinessAnalyticsEngine
+from engine.forecasting import ForecastingEngine
+from engine.alerts_engine import EarlyWarningAlertEngine
+from engine.reports import ManagementReportGenerator
+from engine.ai_analyst import AIBusinessAnalyst
+
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+
+
+class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
+    """HTTP Request Handler for BusinessPilot API and Frontend."""
+
+    def _send_json(self, data: Any, status: int = 200):
+        body = json.dumps(data, default=str).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_file(self, file_path: str, content_type: str = "text/html"):
+        if not os.path.exists(file_path):
+            self.send_error(404, "File Not Found")
+            return
+        with open(file_path, "rb") as f:
+            content = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(content)
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(parsed.query)
+
+        # Resolve company ID: from query parameter, or most recent company in DB
+        req_company_id = query.get("company_id", [None])[0]
+        if req_company_id:
+            company_id = req_company_id
+        else:
+            latest_comp = query_one("SELECT id FROM companies ORDER BY created_at DESC LIMIT 1;")
+            company_id = latest_comp["id"] if latest_comp else "company-default"
+
+        # API Routes
+        if path == "/api/health":
+            self._send_json({"status": "ok", "system": "BusinessPilot BOS", "version": "1.0.0"})
+            return
+
+        elif path == "/api/auth/session":
+            active_comp = None
+            if req_company_id:
+                active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id,))
+            if not active_comp:
+                active_comp = query_one("SELECT * FROM companies ORDER BY created_at DESC LIMIT 1;")
+
+            all_comps = query_all("SELECT id, name, business_type, currency, country FROM companies ORDER BY name ASC;")
+            if active_comp:
+                user = query_one("SELECT id, name, email FROM users WHERE company_id = ? ORDER BY created_at ASC LIMIT 1;", (active_comp["id"],)) or {
+                    "id": "user-default",
+                    "name": "Business Owner",
+                    "email": "",
+                }
+                self._send_json({
+                    "authenticated": True,
+                    "company": active_comp,
+                    "user": user,
+                    "companies": all_comps,
+                })
+            else:
+                self._send_json({
+                    "authenticated": False,
+                    "company": None,
+                    "user": None,
+                    "companies": [],
+                })
+            return
+
+        elif path == "/api/companies":
+            companies = query_all("SELECT * FROM companies ORDER BY name ASC;")
+            self._send_json({"companies": companies})
+            return
+
+        elif path == "/api/dashboard":
+            analytics = BusinessAnalyticsEngine(company_id)
+            rev = analytics.get_revenue_summary()
+            pnl = analytics.get_pnl_statement()
+            inv = analytics.get_inventory_health()
+            cash = analytics.get_cash_flow_summary()
+            trends = analytics.get_revenue_trends()
+            briefing = analytics.generate_morning_briefing()
+
+            company = query_one("SELECT * FROM companies WHERE id = ?;", (company_id,)) or {}
+
+            self._send_json({
+                "company": company,
+                "briefing": briefing,
+                "kpi_cards": briefing["kpi_cards"],
+                "pnl": pnl,
+                "inventory": {
+                    "total_value": inv["total_inventory_value"],
+                    "healthy_count": inv["healthy_count"],
+                    "low_stock_count": inv["low_stock_count"],
+                    "out_of_stock_count": inv["out_of_stock_count"],
+                    "locked_capital": inv["locked_capital_slow_moving"],
+                    "low_stock_items": inv["low_stock_alerts"][:5],
+                },
+                "cash": cash,
+                "trends": trends,
+            })
+            return
+
+        elif path == "/api/analytics":
+            analytics = BusinessAnalyticsEngine(company_id)
+            self._send_json({
+                "revenue": analytics.get_revenue_summary(),
+                "expenses": analytics.get_expense_summary(),
+                "pnl": analytics.get_pnl_statement(),
+                "trends": analytics.get_revenue_trends(),
+            })
+            return
+
+        elif path == "/api/sales":
+            limit = int(query.get("limit", [50])[0])
+            sql = """
+                SELECT 
+                    s.id, s.invoice_number, s.sale_date, s.total, s.cost_of_goods, s.profit,
+                    s.payment_status, c.name AS customer_name, c.customer_type
+                FROM sales s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                WHERE s.company_id = ?
+                ORDER BY s.sale_date DESC, s.created_at DESC
+                LIMIT ?;
+            """
+            sales = query_all(sql, (company_id, limit))
+            summary = BusinessAnalyticsEngine(company_id).get_revenue_summary()
+            self._send_json({"sales": sales, "summary": summary})
+            return
+
+        elif path == "/api/customers":
+            analytics = BusinessAnalyticsEngine(company_id)
+            cust_data = analytics.get_customer_profitability(limit=50)
+            self._send_json(cust_data)
+            return
+
+        elif path == "/api/inventory":
+            analytics = BusinessAnalyticsEngine(company_id)
+            inv_data = analytics.get_inventory_health()
+            sql_all = """
+                SELECT 
+                    p.id, p.sku, p.name, p.selling_price, p.cost_price, p.reorder_level,
+                    COALESCE(SUM(im.quantity), 0.0) AS stock_on_hand,
+                    ROUND(COALESCE(SUM(im.quantity), 0.0) * p.cost_price, 2) AS stock_value
+                FROM products p
+                LEFT JOIN inventory_movements im ON p.id = im.product_id
+                WHERE p.company_id = ?
+                GROUP BY p.id, p.sku, p.name, p.selling_price, p.cost_price, p.reorder_level
+                ORDER BY stock_value DESC;
+            """
+            products = query_all(sql_all, (company_id,))
+            self._send_json({"summary": inv_data, "products": products})
+            return
+
+        elif path == "/api/expenses":
+            analytics = BusinessAnalyticsEngine(company_id)
+            exp_summary = analytics.get_expense_summary()
+            sql_all = """
+                SELECT 
+                    e.id, e.description, e.amount, e.expense_date, e.payment_method, e.status,
+                    COALESCE(ec.name, 'General') AS category_name,
+                    COALESCE(ec.type, 'OPERATING') AS category_type
+                FROM expenses e
+                LEFT JOIN expense_categories ec ON e.category_id = ec.id
+                WHERE e.company_id = ?
+                ORDER BY e.expense_date DESC
+                LIMIT 50;
+            """
+            expenses = query_all(sql_all, (company_id,))
+            self._send_json({"summary": exp_summary, "expenses": expenses})
+            return
+
+        elif path == "/api/cashflow":
+            analytics = BusinessAnalyticsEngine(company_id)
+            cash_summary = analytics.get_cash_flow_summary()
+            # Projected next 60 days schedule
+            bal = cash_summary["current_cash_balance"]
+            burn = cash_summary["monthly_burn_rate"]
+            daily_burn = burn / 30.0
+
+            forecast_points = [
+                {"day": "+0 (Today)", "balance": round(bal, 2)},
+                {"day": "+7 days", "balance": round(bal - (daily_burn * 7) + (bal * 0.05), 2)},
+                {"day": "+14 days", "balance": round(bal - (daily_burn * 14) + (bal * 0.08), 2)},
+                {"day": "+30 days", "balance": round(bal - burn, 2)},
+                {"day": "+60 days", "balance": round(bal - (burn * 2), 2)},
+            ]
+            self._send_json({"cash_summary": cash_summary, "forecast_points": forecast_points})
+            return
+
+        elif path == "/api/forecasts":
+            engine = ForecastingEngine(company_id)
+            rev_fc = engine.generate_revenue_forecast(horizon_months=3)
+            stock_fc = engine.generate_inventory_stockout_forecast()
+            self._send_json({"revenue_forecast": rev_fc, "stockout_forecast": stock_fc})
+            return
+
+        elif path == "/api/alerts":
+            sev = query.get("severity", ["ALL"])[0]
+            engine = EarlyWarningAlertEngine(company_id)
+            # Evaluate & refresh alerts
+            engine.evaluate_and_refresh_alerts()
+            alerts = engine.get_active_alerts(severity=sev)
+            self._send_json({"alerts": alerts, "count": len(alerts)})
+            return
+
+        elif path == "/api/reports/pdf":
+            try:
+                generator = ManagementReportGenerator(company_id)
+                pdf_bytes = generator.generate_pdf_report()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", 'attachment; filename="BusinessPilot_Board_Pack.pdf"')
+                self.send_header("Content-Length", str(len(pdf_bytes)))
+                self.end_headers()
+                self.wfile.write(pdf_bytes)
+            except Exception as e:
+                self._send_json({"error": str(e)}, status=500)
+            return
+
+        elif path == "/api/reports/html":
+            generator = ManagementReportGenerator(company_id)
+            html_str = generator.generate_html_report()
+            html_bytes = html_str.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
+        elif path == "/api/data-sources":
+            comp_id = query.get("company_id", [None])[0]
+            if not comp_id:
+                self._send_json({"files": [], "count": 0})
+                return
+
+            sql = """
+                SELECT 
+                    ds.id, ds.name, ds.source_type, ds.file_url, ds.status, ds.created_at,
+                    COALESCE(ij.rows_successful, 0) AS total_rows,
+                    COALESCE(ij.status, 'COMPLETED') AS job_status
+                FROM data_sources ds
+                LEFT JOIN import_jobs ij ON ds.id = ij.data_source_id
+                WHERE ds.company_id = ?
+                ORDER BY ds.created_at DESC;
+            """
+            sources = query_all(sql, (comp_id,))
+            files = []
+            for s in sources:
+                fpath = s.get("file_url") or ""
+                sheet_info = []
+                total_rows = s.get("total_rows") or 0
+                if fpath and os.path.exists(fpath):
+                    try:
+                        import pandas as pd
+                        if fpath.lower().endswith((".xlsx", ".xls")):
+                            xl = pd.ExcelFile(fpath)
+                            for s_name in xl.sheet_names:
+                                df_s = pd.read_excel(xl, sheet_name=s_name)
+                                sheet_info.append({
+                                    "name": s_name,
+                                    "columns": len([c for c in df_s.columns if not str(c).startswith("Unnamed:")]),
+                                    "rows": len(df_s)
+                                })
+                    except Exception:
+                        pass
+                files.append({
+                    "id": s["id"],
+                    "name": s["name"],
+                    "source_type": s["source_type"],
+                    "status": s["status"] or "Active",
+                    "created_at": s["created_at"],
+                    "total_rows": total_rows,
+                    "sheets": sheet_info,
+                    "sheet_count": len(sheet_info),
+                    "path": fpath,
+                })
+            self._send_json({"files": files, "count": len(files)})
+            return
+
+        elif path == "/api/download-file":
+            fname = query.get("file", ["LexCorp_Business_Operations.xlsx"])[0]
+            safe_fname = os.path.basename(fname)
+            fpath = os.path.join(PROJECT_ROOT, "uploads", safe_fname)
+            if not os.path.exists(fpath):
+                fpath = os.path.join(PROJECT_ROOT, "data", "samples", safe_fname)
+            if os.path.exists(fpath):
+                with open(fpath, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                self.send_header("Content-Disposition", f'attachment; filename="{safe_fname}"')
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_error(404, "File Not Found")
+                return
+
+        elif path == "/api/ai/status":
+            has_env_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+            self._send_json({
+                "success": True,
+                "has_env_key": has_env_key,
+                "model": "gemini-1.5-flash",
+                "free_tier_limits": {
+                    "requests_per_minute": 15,
+                    "tokens_per_minute": 1000000,
+                    "requests_per_day": 1500,
+                    "cost": "$0.00 (Completely Free via Google AI Studio)"
+                },
+                "pay_as_you_go_pricing": {
+                    "input_tokens_per_million": "$0.075",
+                    "output_tokens_per_million": "$0.30",
+                    "average_cost_per_query": "~$0.0001"
+                }
+            })
+            return
+
+        # Serve static frontend files
+        clean_path = path.lstrip("/")
+        if not clean_path:
+            clean_path = "index.html"
+
+        file_path = os.path.join(FRONTEND_DIR, clean_path)
+        content_type = "text/html"
+        if clean_path.endswith(".css"):
+            content_type = "text/css"
+        elif clean_path.endswith(".js"):
+            content_type = "application/javascript"
+        elif clean_path.endswith(".json"):
+            content_type = "application/json"
+        elif clean_path.endswith(".svg"):
+            content_type = "image/svg+xml"
+
+        self._send_file(file_path, content_type)
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length)
+
+        if path == "/api/load-sample":
+            company_id = "company-abc-supermarket-001"
+            init_db()
+
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO companies (id, name, business_type, industry, country, currency)
+                    VALUES (?, 'ABC Supermarket Ltd', 'Retail', 'Supermarket', 'Tanzania', 'TZS');
+                    """,
+                    (company_id,),
+                )
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO users (id, company_id, name, email, password_hash)
+                    VALUES ('user-kennedy-001', ?, 'Kennedy', 'kennedy@abcsupermarket.co.tz', 'hash_secret_123');
+                    """,
+                    (company_id,),
+                )
+
+            excel_path = generate_abc_supermarket_dataset()
+            importer = BusinessDataImporter(company_id)
+            res = importer.import_excel_workbook(excel_path)
+            self._send_json({"success": True, "message": "Loaded ABC Supermarket Ltd sample dataset", "result": res})
+            return
+
+        elif path == "/api/upload-file":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                file_name = data.get("file_name", "upload.xlsx")
+                file_base64 = data.get("file_base64", "")
+                company_id = data.get("company_id", "company-abc-supermarket-001")
+
+                import base64
+                file_bytes = base64.b64decode(file_base64)
+                
+                upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+                os.makedirs(upload_dir, exist_ok=True)
+                save_path = os.path.join(upload_dir, file_name)
+                with open(save_path, "wb") as f:
+                    f.write(file_bytes)
+
+                # Inspect and Auto-map
+                inspection = SpreadsheetReader.inspect_file(save_path)
+                mapped_sheets = {}
+                for sheet in inspection["sheets"].keys():
+                    df = SpreadsheetReader.load_full_sheet(save_path, sheet_name=sheet)
+                    mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
+                    mapped_sheets[sheet] = mapping_res
+
+                self._send_json({
+                    "success": True,
+                    "file_path": save_path,
+                    "inspection": inspection,
+                    "mappings": mapped_sheets,
+                })
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        elif path == "/api/upload-staged-file":
+            try:
+                data = json.loads(body.decode("utf-8")) if body else {}
+                file_name = data.get("file_name", "LexCorp_Business_Operations.xlsx")
+                company_id = data.get("company_id", "company-16cb6e90")
+
+                upload_dir = os.path.join(PROJECT_ROOT, "uploads")
+                os.makedirs(upload_dir, exist_ok=True)
+                target_path = os.path.join(upload_dir, file_name)
+
+                if not os.path.exists(target_path):
+                    src_sample = os.path.join(PROJECT_ROOT, "data", "samples", file_name)
+                    if os.path.exists(src_sample):
+                        import shutil
+                        shutil.copy(src_sample, target_path)
+
+                inspection = SpreadsheetReader.inspect_file(target_path)
+                mapped_sheets = {}
+                for sheet in inspection["sheets"].keys():
+                    df = SpreadsheetReader.load_full_sheet(target_path, sheet_name=sheet)
+                    mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
+                    mapped_sheets[sheet] = mapping_res
+
+                self._send_json({
+                    "success": True,
+                    "file_path": target_path,
+                    "inspection": inspection,
+                    "mappings": mapped_sheets,
+                })
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        elif path == "/api/auth/register":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                company_name = data.get("company_name", "").strip()
+                user_name = data.get("user_name", "Admin").strip()
+                email = data.get("email", "").strip()
+                currency = data.get("currency", "USD").strip().upper() or "USD"
+                business_type = data.get("business_type", "Retail").strip()
+                country = data.get("country", "Tanzania").strip()
+
+                if not company_name:
+                    self._send_json({"success": False, "error": "Company name is required."}, status=400)
+                    return
+
+                company_id = f"company-{generate_uuid()[:8]}"
+                user_id = f"user-{generate_uuid()[:8]}"
+
+                with get_connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO companies (id, name, business_type, industry, country, currency, email)
+                        VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """,
+                        (company_id, company_name, business_type, business_type, country, currency, email),
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO users (id, company_id, name, email, password_hash)
+                        VALUES (?, ?, ?, ?, 'demo_hash');
+                        """,
+                        (user_id, company_id, user_name, email or f"{user_name.lower().replace(' ', '')}@example.com"),
+                    )
+
+                self._send_json({
+                    "success": True,
+                    "company": {
+                        "id": company_id,
+                        "name": company_name,
+                        "currency": currency,
+                        "business_type": business_type,
+                        "country": country,
+                    },
+                    "user": {
+                        "id": user_id,
+                        "name": user_name,
+                        "email": email,
+                    },
+                })
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        elif path == "/api/system/reset":
+            try:
+                with get_connection() as conn:
+                    conn.execute("PRAGMA foreign_keys = OFF;")
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+                    tables = [row[0] for row in cursor.fetchall()]
+                    for t in tables:
+                        conn.execute(f"DELETE FROM {t};")
+                    conn.execute("PRAGMA foreign_keys = ON;")
+
+                upload_dir = os.path.join(PROJECT_ROOT, "uploads")
+                if os.path.exists(upload_dir):
+                    for f in glob.glob(os.path.join(upload_dir, "*")):
+                        try:
+                            os.remove(f)
+                        except Exception:
+                            pass
+
+                self._send_json({"success": True, "message": "All data cleared successfully. System ready for registration."})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=500)
+            return
+
+        elif path == "/api/import-google-sheet":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                url = data.get("url", "").strip()
+                company_id = data.get("company_id", "company-default")
+
+                if not url:
+                    self._send_json({"success": False, "error": "Google Sheets link is required."}, status=400)
+                    return
+
+                sheet_match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", url)
+                if not sheet_match:
+                    self._send_json({
+                        "success": False,
+                        "error": "Invalid Google Sheets link. Please provide a link formatted like: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/...",
+                    }, status=400)
+                    return
+
+                sheet_id = sheet_match.group(1)
+                export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+
+                upload_dir = os.path.join(PROJECT_ROOT, "uploads")
+                os.makedirs(upload_dir, exist_ok=True)
+                save_path = os.path.join(upload_dir, f"google_sheet_{sheet_id[:8]}.xlsx")
+
+                # Try direct download
+                try:
+                    req = urllib.request.Request(
+                        export_url,
+                        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+                    )
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        content = resp.read()
+                        with open(save_path, "wb") as f:
+                            f.write(content)
+                except Exception as net_err:
+                    self._send_json({
+                        "success": False,
+                        "error": f"Direct Google Sheets download was unable to connect ({str(net_err)}). Please ensure link sharing is set to 'Anyone with the link can view'. Alternatively, in Google Sheets click: File > Download > Microsoft Excel (.xlsx) and drag-and-drop the file into the upload zone above!",
+                    }, status=400)
+                    return
+
+                # Inspect and auto-map
+                inspection = SpreadsheetReader.inspect_file(save_path)
+                mapped_sheets = {}
+                for sheet in inspection["sheets"].keys():
+                    df = SpreadsheetReader.load_full_sheet(save_path, sheet_name=sheet)
+                    mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
+                    mapped_sheets[sheet] = mapping_res
+
+                self._send_json({
+                    "success": True,
+                    "file_path": save_path,
+                    "inspection": inspection,
+                    "mappings": mapped_sheets,
+                })
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        elif path == "/api/confirm-import":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                file_path = data.get("file_path")
+                company_id = data.get("company_id", "company-abc-supermarket-001")
+
+                importer = BusinessDataImporter(company_id)
+                res = importer.import_excel_workbook(file_path)
+
+                # Proactively refresh alerts based on the newly imported data
+                try:
+                    EarlyWarningAlertEngine(company_id).evaluate_and_refresh_alerts()
+                except Exception:
+                    pass
+
+                self._send_json({"success": True, "result": res})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        elif path == "/api/ai/query":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                question = data.get("question", "")
+                company_id = data.get("company_id", "company-abc-supermarket-001")
+                conv_id = data.get("conversation_id")
+
+                api_key = data.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+
+                analyst = AIBusinessAnalyst(company_id)
+                answer_result = analyst.answer_question(question, conversation_id=conv_id, api_key=api_key)
+                self._send_json({"success": True, "answer": answer_result})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)}, status=400)
+            return
+
+        self.send_error(404, "Endpoint not found")
+
+
+def run_server(port: int = 8080):
+    init_db()
+    server_address = ("", port)
+    httpd = HTTPServer(server_address, BusinessPilotAPIHandler)
+    print(f"🚀 BusinessPilot Executive Server running at http://localhost:{port}/")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down server.")
+        httpd.server_close()
+
+
+if __name__ == "__main__":
+    import sys
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    run_server(port)
