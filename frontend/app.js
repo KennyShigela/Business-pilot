@@ -2155,7 +2155,26 @@ async function handleRegistrationSubmit(e) {
         country: country,
       }),
     });
-    const data = await res.json();
+    const responseText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      const responseDetail = responseText.trim();
+      const message = responseDetail
+        ? responseDetail.slice(0, 300)
+        : `The server returned an empty response (HTTP ${res.status}). Check the Vercel function logs for details.`;
+      throw new Error(`Registration endpoint returned an invalid response (HTTP ${res.status}): ${message}`);
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error(`Registration endpoint returned an unexpected response (HTTP ${res.status}).`);
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || `The server returned HTTP ${res.status}.`);
+    }
+
     if (data.success) {
       applyCompanySession(data.company, data.user);
       closeRegistrationModal();
@@ -2281,4 +2300,3 @@ async function handleGoogleSheetsImport() {
     btn.disabled = false;
   }
 }
-
