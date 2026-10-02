@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
   setupUserAvatarUpload();
   setupFigureScrollObserver();
   setupIndustryPreview();
-  checkGeminiStatus();
 
   // Initial count-up for figures on page enter
   const initialActivePanel = document.querySelector(".view-panel.active");
@@ -1538,57 +1537,6 @@ async function askAI(question) {
       thinkingWrap.innerHTML = `<div style="color:#dc2626; font-size:0.9rem;">Connection error: ${err.message}</div>`;
     }
   }
-}
-
-function toggleGeminiSettings() {
-  const panel = document.getElementById("gemini-config-panel");
-  if (!panel) return;
-  panel.style.display = panel.style.display === "none" ? "block" : "none";
-  if (panel.style.display === "block") {
-    const saved = localStorage.getItem("business_pilot_gemini_key") || "";
-    const inp = document.getElementById("gemini-api-key-input");
-    if (inp) inp.value = saved;
-    checkGeminiStatus();
-  }
-}
-
-async function checkGeminiStatus() {
-  const statusEl = document.getElementById("gemini-key-status");
-  try {
-    const res = await fetch(`${API_BASE}/api/ai/status`);
-    const data = await res.json();
-    const savedKey = localStorage.getItem("business_pilot_gemini_key");
-    if (savedKey) {
-      if (statusEl) statusEl.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Custom Browser API Key Active.</span> Gemini 1.5 Flash grounded inference ready.`;
-    } else if (data.has_env_key) {
-      if (statusEl) statusEl.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Server Environment Key Active.</span> Grounded in verified financial calculations.`;
-    } else {
-      if (statusEl) statusEl.innerHTML = `Using high-speed verified analytical engine. Enter a Google AI Studio key to enable generative Gemini reasoning (1,500 daily requests free).`;
-    }
-  } catch (e) {
-    // Ignore offline errors
-  }
-}
-
-function saveGeminiApiKey() {
-  const inp = document.getElementById("gemini-api-key-input");
-  const key = inp ? inp.value.trim() : "";
-  if (key) {
-    localStorage.setItem("business_pilot_gemini_key", key);
-    alert("Gemini API Key saved locally in your browser. All business queries will now use Gemini 1.5 Flash with verified financial grounding!");
-  } else {
-    localStorage.removeItem("business_pilot_gemini_key");
-    alert("API Key removed. Fallback engine active.");
-  }
-  checkGeminiStatus();
-}
-
-function clearGeminiApiKey() {
-  localStorage.removeItem("business_pilot_gemini_key");
-  const inp = document.getElementById("gemini-api-key-input");
-  if (inp) inp.value = "";
-  alert("Gemini API Key cleared. Using verified analytical engine.");
-  checkGeminiStatus();
 }
 
 // -------------------------------------------------------------

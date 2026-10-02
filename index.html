@@ -477,45 +477,6 @@
               <h1>✦ AI Business Analyst</h1>
               <p>Ask anything about your business data. Answers are verified by deterministic math.</p>
             </div>
-            <div class="header-controls" style="display:flex; align-items:center; gap:0.5rem;">
-              <span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; font-size:0.75rem; padding:4px 9px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                Gemini 1.5 Flash Connected
-              </span>
-              <button class="btn-secondary" id="btn-toggle-gemini-config" style="font-size:0.75rem; padding:0.35rem 0.65rem;" onclick="toggleGeminiSettings()">API Settings & Costs</button>
-            </div>
-          </div>
-
-          <!-- Gemini Configuration & Pricing Breakdown -->
-          <div id="gemini-config-panel" style="display:none; margin-bottom:1.25rem; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:1.2rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-              <h3 style="margin:0; font-size:0.95rem; color:#0f172a;">Google Gemini API Integration & Pricing</h3>
-              <button type="button" class="btn-secondary" style="font-size:0.75rem; padding:0.2rem 0.5rem;" onclick="toggleGeminiSettings()">Close</button>
-            </div>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
-              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem;">
-                <div style="font-weight:700; color:#16a34a; font-size:0.82rem; margin-bottom:0.35rem;">GOOGLE AI STUDIO FREE TIER</div>
-                <div style="font-size:0.82rem; color:#334155; line-height:1.4;">
-                  <strong>100% Free:</strong> Up to <strong>15 Requests/Min</strong> and <strong>1,500 Requests/Day</strong> at zero cost ($0.00). Ideal for standard business reporting.
-                </div>
-              </div>
-              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:0.85rem;">
-                <div style="font-weight:700; color:#2563eb; font-size:0.82rem; margin-bottom:0.35rem;">PAY-AS-YOU-GO RATE</div>
-                <div style="font-size:0.82rem; color:#334155; line-height:1.4;">
-                  <strong>Ultra-Low Cost:</strong> Gemini 1.5 Flash input is <strong>$0.075 / 1M tokens</strong> (~$0.0001 per financial question).
-                </div>
-              </div>
-            </div>
-
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-              <input type="password" id="gemini-api-key-input" placeholder="Paste your Gemini API Key (or leave blank to use server environment key)..." style="flex:1; padding:0.5rem 0.75rem; font-size:0.85rem; border:1px solid #cbd5e1; border-radius:6px;">
-              <button class="btn-primary" style="font-size:0.82rem; padding:0.5rem 0.9rem;" onclick="saveGeminiApiKey()">Save Key</button>
-              <button class="btn-secondary" style="font-size:0.82rem; padding:0.5rem 0.8rem;" onclick="clearGeminiApiKey()">Clear</button>
-            </div>
-            <div id="gemini-key-status" style="font-size:0.75rem; color:#64748b; margin-top:0.4rem;">
-              Key is stored locally in your browser session and encrypted over HTTPS.
-            </div>
           </div>
 
           <div class="ai-summary-card" style="background:#fff; border-radius:16px; border:1px solid #e2e8f0; box-shadow:0 4px 20px -2px rgba(15,23,42,0.04); padding:1.5rem;">
