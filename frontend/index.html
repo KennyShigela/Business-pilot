@@ -518,25 +518,35 @@
             </div>
           </div>
 
-          <div class="ai-summary-card" style="background:#fff;">
-            <div class="ai-badge-header">
-              <span>✦</span> ASK YOUR BUSINESS
-            </div>
-            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-              <input type="text" id="ai-query-input" class="btn-secondary" style="flex:1; padding:0.65rem;" placeholder="e.g. Why did profit fall this month? Or: Who are our top customers?">
-              <button class="btn-primary" id="btn-submit-ai">Ask AI</button>
-            </div>
-
-            <div style="margin-bottom:1rem;">
-              <span class="trend-sub">Suggested prompts:</span>
-              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.5rem;" onclick="askAI('Why did profit decrease this month?')">Why did profit fall?</button>
-              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.25rem;" onclick="askAI('Which products are low on stock?')">Low stock items?</button>
-              <button class="btn-secondary" style="font-size:0.75rem; margin-left:0.25rem;" onclick="askAI('Who are our most profitable customers?')">Top profitable customers?</button>
+          <div class="ai-summary-card" style="background:#fff; border-radius:16px; border:1px solid #e2e8f0; box-shadow:0 4px 20px -2px rgba(15,23,42,0.04); padding:1.5rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="gemini-sparkle-icon"></span>
+                <span style="font-weight:700; font-size:0.95rem; color:#0f172a; letter-spacing:0.02em;">Ask Business Pilot AI</span>
+                <span style="background:linear-gradient(135deg, #eff6ff, #f5f3ff); color:#4338ca; border:1px solid #c7d2fe; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:12px;">Gemini 1.5 Flash</span>
+              </div>
+              <span style="font-size:0.75rem; color:#64748b;">Financial Grounding Active</span>
             </div>
 
-            <div id="ai-answer-box" style="display:none; padding:1rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
-              <div style="font-weight:600; margin-bottom:0.4rem; color:#0f172a;" id="ai-answer-title">✦ Analysis</div>
-              <div style="font-size:0.9rem; line-height:1.6; color:#334155;" id="ai-answer-content"></div>
+            <div style="display:flex; gap:0.6rem; margin-bottom:1rem;">
+              <input type="text" id="ai-query-input" style="flex:1; padding:0.75rem 1.1rem; border-radius:24px; border:1.5px solid #cbd5e1; font-size:0.92rem; outline:none; transition:border-color 0.2s; background:#fafbfc;" placeholder="Ask anything about profit, cash runway, sales, inventory, or expenses...">
+              <button class="btn-primary" id="btn-submit-ai" style="border-radius:24px; padding:0.75rem 1.35rem; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+                <span class="gemini-sparkle-icon" style="width:16px; height:16px;"></span>
+                <span>Ask Gemini</span>
+              </button>
+            </div>
+
+            <div style="margin-bottom:1.25rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+              <span class="trend-sub" style="margin-right:0.3rem;">Suggested:</span>
+              <button class="btn-secondary" style="font-size:0.75rem; border-radius:20px; padding:0.35rem 0.8rem;" onclick="askAI('Why did profit decrease this month?')">✦ Why did profit fall?</button>
+              <button class="btn-secondary" style="font-size:0.75rem; border-radius:20px; padding:0.35rem 0.8rem;" onclick="askAI('Which products are low on stock?')">✦ Low stock items?</button>
+              <button class="btn-secondary" style="font-size:0.75rem; border-radius:20px; padding:0.35rem 0.8rem;" onclick="askAI('Who are our most profitable customers?')">✦ Top profitable customers?</button>
+              <button class="btn-secondary" style="font-size:0.75rem; border-radius:20px; padding:0.35rem 0.8rem;" onclick="askAI('How can we extend cash runway by 30 days?')">✦ Extend cash runway?</button>
+            </div>
+
+            <!-- Gemini Interactive Conversation Stream Box -->
+            <div id="ai-answer-box" style="display:none;">
+              <!-- Dynamically populated by Gemini response renderer -->
             </div>
           </div>
         </section>

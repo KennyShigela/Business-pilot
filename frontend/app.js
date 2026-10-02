@@ -1244,16 +1244,192 @@ function setupAISearch() {
   }
 }
 
+let currentAiThinkingInterval = null;
+
+function tokenizeHtmlForStreaming(html) {
+  const tokens = [];
+  let i = 0;
+  while (i < html.length) {
+    if (html[i] === '<') {
+      const closeIdx = html.indexOf('>', i);
+      if (closeIdx !== -1) {
+        tokens.push({ type: 'tag', value: html.slice(i, closeIdx + 1) });
+        i = closeIdx + 1;
+        continue;
+      }
+    }
+    let nextSpace = html.indexOf(' ', i);
+    let nextTag = html.indexOf('<', i);
+    let endIdx;
+    if (nextSpace !== -1 && nextTag !== -1) {
+      endIdx = Math.min(nextSpace + 1, nextTag);
+    } else if (nextSpace !== -1) {
+      endIdx = nextSpace + 1;
+    } else if (nextTag !== -1) {
+      endIdx = nextTag;
+    } else {
+      endIdx = html.length;
+    }
+    tokens.push({ type: 'text', value: html.slice(i, endIdx) });
+    i = endIdx;
+  }
+  return tokens;
+}
+
+async function streamHtmlWords(html, targetEl) {
+  if (!targetEl) return;
+  targetEl.innerHTML = "";
+  const tokens = tokenizeHtmlForStreaming(html);
+  let accumulated = "";
+
+  for (const token of tokens) {
+    if (token.type === 'tag') {
+      accumulated += token.value;
+      targetEl.innerHTML = accumulated;
+    } else {
+      accumulated += token.value;
+      targetEl.innerHTML = accumulated;
+      // Natural fluid typewriter delay (18ms per word)
+      await new Promise(r => setTimeout(r, 18));
+    }
+  }
+}
+
+function toggleGeminiThoughts(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector("#gemini-accordion-arrow");
+  if (!body) return;
+  if (body.classList.contains("open")) {
+    body.classList.remove("open");
+    if (arrow) arrow.innerText = "▾";
+  } else {
+    body.classList.add("open");
+    if (arrow) arrow.innerText = "▴";
+  }
+}
+
+function copyGeminiAnswer() {
+  const text = window._latestGeminiAnswerText || "";
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const label = document.getElementById("gemini-copy-label");
+    if (label) {
+      const orig = label.innerText;
+      label.innerText = "Copied!";
+      setTimeout(() => { label.innerText = orig; }, 2000);
+    }
+  }).catch(() => {
+    alert("Copied to clipboard!");
+  });
+}
+
+function rateGeminiFeedback(btn, type) {
+  const siblings = btn.parentElement.querySelectorAll(".gemini-tool-btn");
+  siblings.forEach(s => s.classList.remove("active"));
+  btn.classList.add("active");
+}
+
 async function askAI(question) {
   const box = document.getElementById("ai-answer-box");
-  const title = document.getElementById("ai-answer-title");
-  const content = document.getElementById("ai-answer-content");
   const input = document.getElementById("ai-query-input");
 
   if (input) input.value = question;
+  if (!box) return;
+
   box.style.display = "block";
-  title.innerText = `✦ AI Analyst: "${question}"`;
-  content.innerHTML = "<em>Analyzing verified business data and invoking controlled analytical tools with Gemini 1.5 Flash...</em>";
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  if (currentAiThinkingInterval) {
+    clearInterval(currentAiThinkingInterval);
+    currentAiThinkingInterval = null;
+  }
+
+  // 1. Render User Message Bubble + Gemini Thinking State
+  box.innerHTML = `
+    <div class="gemini-user-msg">
+      <div class="gemini-user-avatar">${(currentUserName || "U").charAt(0).toUpperCase()}</div>
+      <div class="gemini-user-text">${question}</div>
+    </div>
+
+    <div class="gemini-response-card" id="gemini-card-target">
+      <div class="gemini-header-row">
+        <div class="gemini-model-badge">
+          <span class="gemini-sparkle-icon"></span>
+          <span>Gemini 1.5 Flash</span>
+        </div>
+        <span class="gemini-status-tag" id="gemini-status-pill">Thinking...</span>
+      </div>
+
+      <!-- Thinking State Animation -->
+      <div class="gemini-thinking-wrap" id="gemini-thinking-wrap">
+        <div class="gemini-thinking-status">
+          <span class="gemini-sparkle-icon" style="width:16px; height:16px;"></span>
+          <span id="gemini-dynamic-thinking-text">Thinking...</span>
+        </div>
+        <div class="gemini-thinking-bars">
+          <div class="gemini-shimmer-bar w-100"></div>
+          <div class="gemini-shimmer-bar w-85"></div>
+          <div class="gemini-shimmer-bar w-65"></div>
+        </div>
+      </div>
+
+      <!-- Stream Content Area (Initially Hidden) -->
+      <div id="gemini-stream-area" style="display:none;">
+        <div id="gemini-accordion-container"></div>
+
+        <div style="position:relative;">
+          <div id="gemini-stream-text" class="gemini-text-stream"></div>
+          <span class="gemini-cursor" id="gemini-cursor"></span>
+        </div>
+
+        <div id="gemini-recommendation-block" style="display:none; margin-top:1.15rem; padding:0.95rem 1.15rem; background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:10px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Strategic Tactical Action
+          </div>
+          <div id="gemini-recommendation-text" style="font-size:0.92rem; color:#1e293b; line-height:1.5;"></div>
+        </div>
+
+        <div class="gemini-action-bar" id="gemini-action-bar" style="display:none;">
+          <div class="gemini-actions-left">
+            <button class="gemini-tool-btn" id="btn-gemini-copy" onclick="copyGeminiAnswer()" title="Copy answer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span id="gemini-copy-label">Copy</span>
+            </button>
+            <button class="gemini-tool-btn" onclick="rateGeminiFeedback(this, 'up')" title="Good response">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+            </button>
+            <button class="gemini-tool-btn" onclick="rateGeminiFeedback(this, 'down')" title="Poor response">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+            </button>
+            <button class="gemini-tool-btn" onclick="askAI('${question.replace(/'/g, "\\'")}')" title="Regenerate analysis">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              <span>Regenerate</span>
+            </button>
+          </div>
+          <div class="gemini-grounding-attribution">
+            <span class="gemini-sparkle-icon" style="width:13px; height:13px;"></span>
+            <span>Grounded in Verified Financial Ledger</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Dynamic Thinking Messages Cycle
+  const thinkingEl = document.getElementById("gemini-dynamic-thinking-text");
+  const thinkingMessages = [
+    "Thinking...",
+    "Scanning verified business ledger & transactions...",
+    "Auditing revenue margins and operating burn rates...",
+    "Cross-referencing SKU velocities and cash runway...",
+    "Synthesizing executive root causes and tactical next steps..."
+  ];
+  let msgIdx = 0;
+  currentAiThinkingInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % thinkingMessages.length;
+    if (thinkingEl) thinkingEl.innerText = thinkingMessages[msgIdx];
+  }, 700);
 
   const savedGeminiKey = localStorage.getItem("business_pilot_gemini_key") || "";
 
@@ -1268,34 +1444,99 @@ async function askAI(question) {
       }),
     });
     const data = await res.json();
+    clearInterval(currentAiThinkingInterval);
+
     if (data.success && data.answer) {
       const a = data.answer;
-      let toolsHtml = a.tool_calls.map(t => `<code style="background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px; margin-right:4px;">${t}</code>`).join("");
-      let citationsHtml = a.citations.map(c => `<li>${c.metric}: <strong>${c.value}</strong></li>`).join("");
 
-      content.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.4rem;">
-          <span style="font-size:0.75rem; font-weight:700; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:10px;">${a.provider || 'Gemini 1.5 Flash Grounded'}</span>
-          <span style="font-size:0.72rem; color:#64748b;">${a.epistemic_confidence || 'Verified Grounding'}</span>
-        </div>
-        <div style="margin-bottom:0.85rem; line-height:1.65; color:#1e293b;">${a.explanation}</div>
-        <div style="background:#f1f5f9; padding:0.6rem 0.8rem; border-radius:6px; margin-bottom:0.75rem;">
-          <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Verified Ledger Tools Invoked:</div>
-          <div>${toolsHtml}</div>
-        </div>
-        <div style="font-size:12px; color:#475569; margin-bottom:0.6rem;">
-          <strong>Verified Financial Citations:</strong>
-          <ul style="padding-left:18px; margin-top:4px;">${citationsHtml}</ul>
-        </div>
-        <div style="font-size:12px; color:#1d4ed8; font-weight:600; background:#eff6ff; padding:0.6rem 0.8rem; border-radius:6px; border-left:3px solid #3b82f6;">
-          Tactical Recommendation: ${a.action_recommendation}
-        </div>
-      `;
+      // 1. Hide thinking animation, show stream area
+      const thinkingWrap = document.getElementById("gemini-thinking-wrap");
+      if (thinkingWrap) thinkingWrap.style.display = "none";
+
+      const streamArea = document.getElementById("gemini-stream-area");
+      if (streamArea) streamArea.style.display = "block";
+
+      const statusPill = document.getElementById("gemini-status-pill");
+      if (statusPill) {
+        statusPill.innerText = a.provider ? a.provider.split("(")[0].trim() : "Grounded Answer";
+        statusPill.style.background = "#ecfdf5";
+        statusPill.style.color = "#047857";
+      }
+
+      // 2. Render Thought Process Accordion
+      const accordionContainer = document.getElementById("gemini-accordion-container");
+      const toolsHtml = a.tool_calls.map(t => `<code style="background:#e2e8f0; padding:2px 7px; border-radius:4px; font-size:11px; margin-right:4px;">${t}</code>`).join("");
+      const citationsHtml = a.citations.map(c => `<li>${c.metric}: <strong>${c.value}</strong></li>`).join("");
+
+      if (accordionContainer) {
+        accordionContainer.innerHTML = `
+          <div class="gemini-thoughts-accordion">
+            <div class="gemini-thoughts-header" onclick="toggleGeminiThoughts(this)">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>Thought process & ledger verification (${a.tool_calls.length} tools invoked, ${a.citations.length} metrics checked)</span>
+              </div>
+              <span id="gemini-accordion-arrow">▾</span>
+            </div>
+            <div class="gemini-thoughts-body" id="gemini-accordion-body">
+              <div style="margin-bottom:0.5rem;">
+                <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Ledger Tools Executed:</div>
+                <div>${toolsHtml}</div>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:3px;">Verified Financial Citations:</div>
+                <ul style="padding-left:18px; margin:0;">${citationsHtml}</ul>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Word-by-Word Streaming into Target Element
+      const streamTarget = document.getElementById("gemini-stream-text");
+      const cursor = document.getElementById("gemini-cursor");
+
+      await streamHtmlWords(a.explanation, streamTarget);
+
+      // Fade out blinking cursor
+      if (cursor) {
+        cursor.style.transition = "opacity 0.4s ease";
+        cursor.style.opacity = "0";
+        setTimeout(() => cursor.remove(), 400);
+      }
+
+      // 4. Reveal Tactical Recommendation block
+      const recBlock = document.getElementById("gemini-recommendation-block");
+      const recText = document.getElementById("gemini-recommendation-text");
+      if (recBlock && recText && a.action_recommendation) {
+        recText.innerText = a.action_recommendation;
+        recBlock.style.display = "block";
+      }
+
+      // 5. Reveal Action Bar
+      const actionBar = document.getElementById("gemini-action-bar");
+      if (actionBar) {
+        actionBar.style.display = "flex";
+      }
+
+      // Cache raw text for copying
+      window._latestGeminiAnswerText = streamTarget ? streamTarget.innerText : "";
+      if (a.action_recommendation) {
+        window._latestGeminiAnswerText += `\n\nStrategic Action: ${a.action_recommendation}`;
+      }
+
     } else {
-      content.innerText = "Error analyzing question: " + (data.error || "Unknown response");
+      const thinkingWrap = document.getElementById("gemini-thinking-wrap");
+      if (thinkingWrap) {
+        thinkingWrap.innerHTML = `<div style="color:#dc2626; font-size:0.9rem;">Analysis error: ${data.error || 'Failed to analyze question'}</div>`;
+      }
     }
   } catch (err) {
-    content.innerText = "Connection error: " + err.message;
+    clearInterval(currentAiThinkingInterval);
+    const thinkingWrap = document.getElementById("gemini-thinking-wrap");
+    if (thinkingWrap) {
+      thinkingWrap.innerHTML = `<div style="color:#dc2626; font-size:0.9rem;">Connection error: ${err.message}</div>`;
+    }
   }
 }
 

@@ -875,3 +875,250 @@ body {
   color: #3730a3;
 }
 
+/* ============================================================ */
+/* GOOGLE GEMINI AI CHAT & ANALYST EXPERIENCE                   */
+/* ============================================================ */
+
+/* Gemini Sparkle Gradient Icon */
+.gemini-sparkle-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1ba0e2 0%, #4285f4 35%, #9b72cf 70%, #d96570 100%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z' fill='black'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z' fill='black'/%3E%3C/svg%3E") no-repeat center / contain;
+  animation: geminiPulse 3s ease-in-out infinite;
+}
+
+@keyframes geminiPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 4px rgba(66, 133, 244, 0.45));
+  }
+  50% {
+    transform: scale(1.14) rotate(6deg);
+    filter: drop-shadow(0 0 10px rgba(155, 114, 207, 0.75));
+  }
+}
+
+/* Gemini User Query Bubble */
+.gemini-user-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+}
+.gemini-user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.gemini-user-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.45;
+  padding-top: 3px;
+}
+
+/* Gemini Response Container */
+.gemini-response-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.35rem 1.6rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.gemini-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.gemini-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0.02em;
+}
+.gemini-status-tag {
+  font-size: 0.72rem;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+/* Gemini Thinking State */
+.gemini-thinking-wrap {
+  padding: 1.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.gemini-thinking-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #475569;
+  transition: all 0.3s ease;
+}
+.gemini-thinking-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.gemini-shimmer-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #dbeafe 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: geminiShimmerAnim 1.6s ease-in-out infinite;
+}
+.gemini-shimmer-bar.w-100 { width: 100%; }
+.gemini-shimmer-bar.w-85 { width: 85%; }
+.gemini-shimmer-bar.w-65 { width: 65%; }
+
+@keyframes geminiShimmerAnim {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Gemini Streaming Text & Cursor */
+.gemini-text-stream {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #1e293b;
+  word-break: break-word;
+}
+.gemini-text-stream p {
+  margin-bottom: 0.75rem;
+}
+.gemini-text-stream b, .gemini-text-stream strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+.gemini-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 1.15em;
+  background: linear-gradient(180deg, #1ba0e2 0%, #4285f4 50%, #9b72cf 100%);
+  margin-left: 3px;
+  vertical-align: -2px;
+  border-radius: 2px;
+  animation: geminiCursorBlink 0.75s infinite ease-in-out;
+}
+@keyframes geminiCursorBlink {
+  0%, 100% { opacity: 1; transform: scaleY(1); }
+  50% { opacity: 0; transform: scaleY(0.85); }
+}
+
+/* Gemini Thought Process Disclosure Accordion */
+.gemini-thoughts-accordion {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 1.1rem;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+.gemini-thoughts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+}
+.gemini-thoughts-header:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.gemini-thoughts-body {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.82rem;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: none;
+}
+.gemini-thoughts-body.open {
+  display: block;
+}
+
+/* Gemini Action Toolbar */
+.gemini-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gemini-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.gemini-tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.gemini-tool-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.gemini-tool-btn.active {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.gemini-grounding-attribution {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
