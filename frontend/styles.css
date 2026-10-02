@@ -560,7 +560,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin-bottom: 1.5rem;
 }
 
@@ -1121,4 +1122,151 @@ body {
   align-items: center;
   gap: 4px;
 }
+
+/* ============================================================
+   RESPONSIVE DESIGN SYSTEM (ALL SCREEN SIZES & DEVICES)
+   ============================================================ */
+
+/* 1. Large Displays & Desktop (> 1024px) */
+.btn-mobile-menu {
+  display: none;
+}
+.sidebar-backdrop {
+  display: none;
+}
+
+/* 2. Tablets & Laptops (769px - 1200px) */
+@media (max-width: 1200px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .content-body {
+    padding: 1.35rem 1.5rem;
+  }
+}
+
+/* 3. Small Tablets & Phones (<= 768px) */
+@media (max-width: 768px) {
+  .app-container {
+    position: relative;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1200;
+    width: 260px;
+    max-width: 80vw;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 1100;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+  }
+
+  .btn-mobile-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #f8fafc;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-main);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-mobile-menu:hover {
+    background: #f1f5f9;
+  }
+
+  .top-header {
+    padding: 0 1rem;
+    gap: 0.5rem;
+  }
+
+  .search-bar {
+    width: auto;
+    flex: 1;
+    max-width: 220px;
+  }
+
+  .content-body {
+    padding: 1.15rem 1rem;
+  }
+
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* 4. Compact Mobile Phones (<= 640px) */
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .chart-card {
+    padding: 1rem;
+  }
+
+  #chart-expense-donut {
+    height: 370px !important;
+  }
+
+  .search-bar {
+    max-width: 140px;
+  }
+
+  #btn-new-workspace .btn-label {
+    display: none;
+  }
+
+  .data-table {
+    min-width: 520px;
+  }
+
+  .modal-card {
+    padding: 1.25rem 1rem;
+    max-width: 95vw;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
 

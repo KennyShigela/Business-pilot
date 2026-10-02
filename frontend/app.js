@@ -37,12 +37,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 150);
   }
 
-  window.addEventListener("resize", () => {
+  function resizeAllCharts() {
     if (revTrendChart) revTrendChart.resize();
     if (expenseDonutChart) expenseDonutChart.resize();
     if (cashProjectionChart) cashProjectionChart.resize();
     if (pnlBridgeChart) pnlBridgeChart.resize();
-  });
+    if (forecastChartInstance) forecastChartInstance.resize();
+  }
+
+  window.addEventListener("resize", resizeAllCharts);
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => {
+      resizeAllCharts();
+    });
+    document.querySelectorAll(".chart-container").forEach(el => ro.observe(el));
+  }
 });
 
 // -------------------------------------------------------------
@@ -209,10 +219,32 @@ function refreshFigureObserver() {
 // -------------------------------------------------------------
 function setupNavigation() {
   const navItems = document.querySelectorAll(".nav-item");
+  const sidebar = document.querySelector(".sidebar");
+  const backdrop = document.getElementById("sidebar-backdrop");
+  const menuBtn = document.getElementById("btn-mobile-menu");
+
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+      if (backdrop) backdrop.classList.toggle("active");
+    });
+  }
+
+  if (backdrop && sidebar) {
+    backdrop.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+      backdrop.classList.remove("active");
+    });
+  }
+
   navItems.forEach(item => {
     item.addEventListener("click", () => {
       const targetView = item.getAttribute("data-view");
       switchView(targetView);
+      if (sidebar && sidebar.classList.contains("open")) {
+        sidebar.classList.remove("open");
+        if (backdrop) backdrop.classList.remove("active");
+      }
     });
   });
 }
@@ -602,118 +634,160 @@ async function loadAndRenderExpenseDonut() {
     ];
 
     const option = {
-      color: modernColors,
-      title: {
-        text: formatCurrency(totalExp),
-        subtext: "TOTAL OPEX",
-        left: "27%",
-        top: "42%",
-        textAlign: "center",
-        textStyle: {
-          fontSize: 14,
-          fontWeight: 700,
-          color: "#0f172a",
-          fontFamily: "Inter, system-ui, sans-serif",
-        },
-        subtextStyle: {
-          fontSize: 9,
-          color: "#64748b",
-          fontWeight: 700,
-          letterSpacing: "0.08em",
-        },
-      },
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "rgba(255, 255, 255, 0.98)",
-        borderColor: "#e2e8f0",
-        borderWidth: 1,
-        padding: [10, 14],
-        extraCssText: "box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03); backdrop-filter: blur(8px); border-radius: 10px;",
-        textStyle: { color: "#0f172a", fontFamily: "Inter, system-ui, sans-serif" },
-        formatter: (params) => {
-          const val = Number(params.value || 0);
-          return `
-            <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Expense Cost Center</div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${params.color};"></span>
-              <strong style="color:#0f172a; font-size:0.92rem;">${params.name}</strong>
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem; color:#475569; margin-top:4px;">
-              <span>Amount:</span>
-              <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">${formatCurrency(val)}</strong>
-            </div>
-            <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem; color:#475569;">
-              <span>Share of OPEX:</span>
-              <span class="badge-status badge-healthy" style="padding:1px 6px; font-size:0.75rem;">${params.percent}%</span>
-            </div>
-          `;
-        },
-      },
-      legend: {
-        type: "scroll",
-        orient: "vertical",
-        left: "52%",
-        right: 12,
-        top: "middle",
-        icon: "circle",
-        itemWidth: 10,
-        itemHeight: 10,
-        itemGap: 12,
-        pageIconSize: 11,
-        pageTextStyle: { fontSize: 10, color: "#94a3b8" },
-        textStyle: {
-          fontSize: 11.5,
-          color: "#475569",
-          fontFamily: "Inter, system-ui, sans-serif",
-          rich: {
-            name: {
-              width: 140,
-              overflow: "truncate",
-              fontSize: 11.5,
-              fontWeight: 500,
-              color: "#334155",
-            },
-            pct: {
-              width: 50,
-              align: "right",
-              fontSize: 11.5,
-              fontWeight: 600,
-              color: "#64748b",
-            },
+      baseOption: {
+        color: modernColors,
+        title: {
+          text: formatCurrency(totalExp),
+          subtext: "TOTAL OPEX",
+          left: "28%",
+          top: "42%",
+          textAlign: "center",
+          textStyle: {
+            fontSize: 14,
+            fontWeight: 700,
+            color: "#0f172a",
+            fontFamily: "Inter, system-ui, sans-serif",
+          },
+          subtextStyle: {
+            fontSize: 9,
+            color: "#64748b",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
           },
         },
-        formatter: (name) => {
-          const cat = categories.find(c => c.category === name);
-          const pct = cat && cat.percentage !== undefined ? `${cat.percentage}%` : "";
-          return `{name|${name}} {pct|${pct}}`;
-        },
-      },
-      series: [
-        {
-          name: "Expenses",
-          type: "pie",
-          radius: ["46%", "70%"],
-          center: ["27%", "50%"],
-          avoidLabelOverlap: false,
-          itemStyle: {
-            borderRadius: 7,
-            borderColor: "#ffffff",
-            borderWidth: 3,
-            shadowColor: "rgba(0, 0, 0, 0.04)",
-            shadowBlur: 6,
+        tooltip: {
+          trigger: "item",
+          backgroundColor: "rgba(255, 255, 255, 0.98)",
+          borderColor: "#e2e8f0",
+          borderWidth: 1,
+          padding: [10, 14],
+          extraCssText: "box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03); backdrop-filter: blur(8px); border-radius: 10px;",
+          textStyle: { color: "#0f172a", fontFamily: "Inter, system-ui, sans-serif" },
+          formatter: (params) => {
+            const val = Number(params.value || 0);
+            return `
+              <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Expense Cost Center</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${params.color};"></span>
+                <strong style="color:#0f172a; font-size:0.92rem;">${params.name}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem; color:#475569; margin-top:4px;">
+                <span>Amount:</span>
+                <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">${formatCurrency(val)}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem; color:#475569;">
+                <span>Share of OPEX:</span>
+                <span class="badge-status badge-healthy" style="padding:1px 6px; font-size:0.75rem;">${params.percent}%</span>
+              </div>
+            `;
           },
-          emphasis: {
-            scale: true,
-            scaleSize: 6,
+        },
+        legend: {
+          type: "scroll",
+          orient: "vertical",
+          left: "52%",
+          right: 12,
+          top: "middle",
+          icon: "circle",
+          itemWidth: 10,
+          itemHeight: 10,
+          itemGap: 12,
+          pageIconSize: 11,
+          pageTextStyle: { fontSize: 10, color: "#94a3b8" },
+          textStyle: {
+            fontSize: 11.5,
+            color: "#475569",
+            fontFamily: "Inter, system-ui, sans-serif",
+            rich: {
+              name: {
+                width: 140,
+                overflow: "truncate",
+                fontSize: 11.5,
+                fontWeight: 500,
+                color: "#334155",
+              },
+              pct: {
+                width: 50,
+                align: "right",
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: "#64748b",
+              },
+            },
+          },
+          formatter: (name) => {
+            const cat = categories.find(c => c.category === name);
+            const pct = cat && cat.percentage !== undefined ? `${cat.percentage}%` : "";
+            return `{name|${name}} {pct|${pct}}`;
+          },
+        },
+        series: [
+          {
+            name: "Expenses",
+            type: "pie",
+            radius: ["46%", "70%"],
+            center: ["28%", "50%"],
+            avoidLabelOverlap: false,
             itemStyle: {
-              shadowBlur: 14,
-              shadowOffsetX: 0,
-              shadowColor: "rgba(0, 0, 0, 0.16)",
+              borderRadius: 7,
+              borderColor: "#ffffff",
+              borderWidth: 3,
+              shadowColor: "rgba(0, 0, 0, 0.04)",
+              shadowBlur: 6,
             },
+            emphasis: {
+              scale: true,
+              scaleSize: 6,
+              itemStyle: {
+                shadowBlur: 14,
+                shadowOffsetX: 0,
+                shadowColor: "rgba(0, 0, 0, 0.16)",
+              },
+            },
+            label: { show: false },
+            labelLine: { show: false },
+            data: chartData,
           },
-          label: { show: false },
-          labelLine: { show: false },
-          data: chartData,
+        ],
+      },
+      media: [
+        {
+          query: {
+            maxWidth: 560,
+          },
+          option: {
+            title: {
+              left: "50%",
+              top: "32%",
+            },
+            legend: {
+              orient: "horizontal",
+              left: "center",
+              right: "auto",
+              top: "auto",
+              bottom: 8,
+              itemGap: 10,
+              textStyle: {
+                fontSize: 11,
+                rich: {
+                  name: {
+                    width: 95,
+                    fontSize: 11,
+                  },
+                  pct: {
+                    width: 40,
+                    fontSize: 11,
+                  },
+                },
+              },
+            },
+            series: [
+              {
+                center: ["50%", "35%"],
+                radius: ["36%", "56%"],
+              },
+            ],
+          },
         },
       ],
     };
