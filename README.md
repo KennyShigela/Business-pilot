@@ -92,7 +92,7 @@ npx vercel
 npx vercel --prod
 ```
 
-Or connect the GitHub repository directly in your **Vercel Dashboard** for automated CI/CD deployments.
+Or connect the GitHub repository directly in your **Vercel Dashboard** for automated CI/CD deployments. When configuring the project, use the repository root as the **Root Directory** (not `frontend`), leave the **Build Command** empty, and use the repository root as the **Output Directory**. The root contains the static entrypoint and the `api/` serverless function. The Vercel rewrites send API requests to the function and unknown page paths to the single-page app.
 
 ---
 
