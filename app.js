@@ -2286,58 +2286,34 @@ function setupIndustryPreview() {
   const industryProfiles = {
     "Retail": {
       title: "Retail & Supermarket Suite",
-      badge: "Retail Tailored",
-      badgeColor: "#ecfdf5",
-      badgeText: "#047857",
       desc: "Features enabled: Point of Sale (POS) Cash Register Invoices, SKU Reorder Matrix & Shelf Dead-Stock Alerts, Walk-in Footfall Analytics, and Product Category Margin Bridges."
     },
     "Wholesale": {
       title: "Wholesale & Distribution Suite",
-      badge: "B2B Logistics",
-      badgeColor: "#eff6ff",
-      badgeText: "#1d4ed8",
       desc: "Features enabled: Bulk Invoicing & 30/60/90-Day AR Aging, Pallet & Batch Warehousing, Tiered Wholesale Pricing, and Credit Terms Risk Monitor."
     },
     "Services": {
       title: "Professional Services & Agency Suite",
-      badge: "Services Tailored",
-      badgeColor: "#f5f3ff",
-      badgeText: "#6d28d9",
       desc: "Features enabled: Client Retainers & Milestone Invoicing, Consultant Billable Overhead Burn, Client Lifetime Value (LTV), and Cash Runway Reserves."
     },
     "E-Commerce": {
       title: "E-Commerce & Digital Commerce Suite",
-      badge: "Online Commerce",
-      badgeColor: "#fdf4ff",
-      badgeText: "#a21caf",
       desc: "Features enabled: Online Cart Conversions, Fulfillment Cost Tracking, Return & Refund Rate Analytics, and Payment Gateway Fee Auditing."
     },
     "Manufacturing": {
       title: "Manufacturing & Production Suite",
-      badge: "Production Tailored",
-      badgeColor: "#fffbeb",
-      badgeText: "#b45309",
       desc: "Features enabled: Raw Material Bill of Materials (BOM), Work-In-Progress (WIP) Valuation, Scrap & Yield Rates, and Machine Operating Overhead."
     },
     "Hospitality": {
       title: "Hospitality & Restaurant Suite",
-      badge: "Hospitality Suite",
-      badgeColor: "#fef2f2",
-      badgeText: "#b91c1c",
       desc: "Features enabled: Daily Table Turn Rates, Per-Cover Average Spend, Food & Beverage Spoilage Ratios, and Peak Shift Staffing Expenses."
     },
     "Healthcare": {
       title: "Pharmacy & Healthcare Suite",
-      badge: "Healthcare Suite",
-      badgeColor: "#ecfeff",
-      badgeText: "#0e7490",
       desc: "Features enabled: Prescription Sales Ledger, Batch Expiration Risk Monitoring, Regulated Insurance Receivables, and Controlled Substance Inventory."
     },
     "Other": {
       title: "Standard Executive Business Suite",
-      badge: "Standard Layout",
-      badgeColor: "#f1f5f9",
-      badgeText: "#475569",
       desc: "Standard layout: Executive Profit & Loss (P&L), Revenue & Expense Breakdown, Working Capital Runway, and Deterministic AI Management Briefings."
     }
   };
@@ -2346,9 +2322,9 @@ function setupIndustryPreview() {
     const val = bTypeSelect.value || "Retail";
     const profile = industryProfiles[val] || industryProfiles["Other"];
     previewTitle.innerText = profile.title;
-    previewBadge.innerText = profile.badge;
-    previewBadge.style.background = profile.badgeColor;
-    previewBadge.style.color = profile.badgeText;
+    if (previewBadge) {
+      previewBadge.remove();
+    }
     previewDesc.innerText = profile.desc;
   }
 
