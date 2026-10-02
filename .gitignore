@@ -1,6 +1,34 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+
+# macOS / OS specific files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Icon?
+Icon*
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# SQLite temporary / wal files
+*.db-shm
+*.db-wal
