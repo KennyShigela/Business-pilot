@@ -79,6 +79,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        try:
+            self._handle_get_internal()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_json({"error": "Internal Server Error", "details": str(e)}, status=500)
+
+    def _handle_get_internal(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
@@ -98,15 +106,34 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 if orig_query:
                     query.update(orig_query)
 
-        # Resolve company ID: from query parameter, or most recent company in DB
-        req_company_id = query.get("company_id", [None])[0]
-        if req_company_id:
-            company_id = req_company_id
-        else:
-            latest_comp = query_one("SELECT id FROM companies ORDER BY created_at DESC LIMIT 1;")
-            company_id = latest_comp["id"] if latest_comp else "company-default"
+        # 1. Non-API routes: serve static frontend files immediately without DB access
+        if not path.startswith("/api"):
+            clean_path = path.lstrip("/")
+            if not clean_path:
+                clean_path = "index.html"
 
-        # API Routes
+            file_path = os.path.join(FRONTEND_DIR, clean_path)
+            if not os.path.exists(file_path):
+                file_path = os.path.join(PROJECT_ROOT, clean_path)
+            if not os.path.exists(file_path):
+                file_path = os.path.join(FRONTEND_DIR, "index.html")
+                if not os.path.exists(file_path):
+                    file_path = os.path.join(PROJECT_ROOT, "index.html")
+
+            content_type = "text/html"
+            if clean_path.endswith(".css"):
+                content_type = "text/css"
+            elif clean_path.endswith(".js"):
+                content_type = "application/javascript"
+            elif clean_path.endswith(".json"):
+                content_type = "application/json"
+            elif clean_path.endswith(".svg"):
+                content_type = "image/svg+xml"
+
+            self._send_file(file_path, content_type)
+            return
+
+        # 2. Lightweight API routes without DB
         if path == "/api/health":
             self._send_json({"status": "ok", "system": "BusinessPilot BOS", "version": "1.0.0"})
             return
@@ -115,7 +142,18 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "ok", "system": "BusinessPilot BOS API", "version": "1.0.0"})
             return
 
-        elif path == "/api/auth/session":
+        # 3. Resolve company ID safely: from query parameter, or most recent company in DB
+        req_company_id = query.get("company_id", [None])[0]
+        if req_company_id:
+            company_id = req_company_id
+        else:
+            try:
+                latest_comp = query_one("SELECT id FROM companies ORDER BY created_at DESC LIMIT 1;")
+                company_id = latest_comp["id"] if latest_comp else "company-default"
+            except Exception:
+                company_id = "company-default"
+
+        if path == "/api/auth/session":
             active_comp = None
             if req_company_id:
                 active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id,))
@@ -395,32 +433,17 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             })
             return
 
-        # Serve static frontend files
-        clean_path = path.lstrip("/")
-        if not clean_path:
-            clean_path = "index.html"
-
-        file_path = os.path.join(FRONTEND_DIR, clean_path)
-        if not os.path.exists(file_path):
-            file_path = os.path.join(PROJECT_ROOT, clean_path)
-        if not os.path.exists(file_path) and not clean_path.startswith("api"):
-            file_path = os.path.join(FRONTEND_DIR, "index.html")
-            if not os.path.exists(file_path):
-                file_path = os.path.join(PROJECT_ROOT, "index.html")
-
-        content_type = "text/html"
-        if clean_path.endswith(".css"):
-            content_type = "text/css"
-        elif clean_path.endswith(".js"):
-            content_type = "application/javascript"
-        elif clean_path.endswith(".json"):
-            content_type = "application/json"
-        elif clean_path.endswith(".svg"):
-            content_type = "image/svg+xml"
-
-        self._send_file(file_path, content_type)
+        self.send_error(404, "Endpoint not found")
 
     def do_POST(self):
+        try:
+            self._handle_post_internal()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_json({"error": "Internal Server Error", "details": str(e)}, status=500)
+
+    def _handle_post_internal(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
