@@ -734,18 +734,87 @@ class WSGIHandler(BusinessPilotAPIHandler):
         self.wfile.write(err_body)
 
 
+async def handle_asgi(scope: Dict[str, Any], receive: Any, send: Any):
+    """ASGI 3 request processor for Vercel Python runtime."""
+    if scope.get("type") == "lifespan":
+        while True:
+            msg = await receive()
+            if msg.get("type") == "lifespan.startup":
+                await send({"type": "lifespan.startup.complete"})
+            elif msg.get("type") == "lifespan.shutdown":
+                await send({"type": "lifespan.shutdown.complete"})
+                return
+        return
+
+    if scope.get("type") != "http":
+        return
+
+    method = scope.get("method", "GET").upper()
+    path = scope.get("path", "/")
+    qs = scope.get("query_string", b"")
+    if isinstance(qs, bytes):
+        qs = qs.decode("utf-8", errors="replace")
+    full_path = f"{path}?{qs}" if qs else path
+
+    body = b""
+    more_body = True
+    while more_body:
+        msg = await receive()
+        body += msg.get("body", b"")
+        more_body = msg.get("more_body", False)
+
+    headers = {}
+    for k, v in scope.get("headers", []):
+        k_str = k.decode("latin1") if isinstance(k, bytes) else str(k)
+        v_str = v.decode("latin1") if isinstance(v, bytes) else str(v)
+        headers[k_str.lower()] = v_str
+
+    inst = WSGIHandler(full_path, method, body, headers)
+    if method == "GET":
+        inst.do_GET()
+    elif method == "POST":
+        inst.do_POST()
+    elif method == "OPTIONS":
+        inst.do_OPTIONS()
+    else:
+        inst.send_error(405, "Method Not Allowed")
+
+    resp_headers = [
+        (k.encode("latin1"), str(v).encode("latin1"))
+        for k, v in inst.response_headers
+    ]
+
+    await send({
+        "type": "http.response.start",
+        "status": inst.response_status,
+        "headers": resp_headers,
+    })
+    await send({
+        "type": "http.response.body",
+        "body": inst.wfile.getvalue(),
+    })
+
+
 class DualHandler(BusinessPilotAPIHandler):
     """
     Polymorphic handler that works seamlessly as:
     1. BaseHTTPRequestHandler for Vercel Serverless Functions and local HTTPServer
-    2. WSGI callable (environ, start_response) for Vercel Python Framework presets / WSGI servers
+    2. WSGI callable (environ, start_response) for WSGI servers
+    3. ASGI callable (scope, receive, send) for modern Vercel ASGI runtime
     """
 
     def __new__(cls, *args, **kwargs):
+        # Case 1: WSGI (2 positional args: environ, start_response)
         if len(args) == 2 and callable(args[1]):
-            # WSGI callable invocation: (environ, start_response)
             environ, start_response = args
             return cls._handle_wsgi(environ, start_response)
+
+        # Case 2: ASGI (3 positional args: scope, receive, send where scope is a dict)
+        if len(args) == 3 and isinstance(args[0], dict) and "type" in args[0]:
+            scope, receive, send = args
+            return handle_asgi(scope, receive, send)
+
+        # Case 3: BaseHTTPRequestHandler (request, client_address, server)
         return super().__new__(cls)
 
     @classmethod
@@ -783,6 +852,15 @@ class DualHandler(BusinessPilotAPIHandler):
         status_line = f"{inst.response_status} {reason}"
         start_response(status_line, inst.response_headers)
         return [inst.wfile.getvalue()]
+
+
+def universal_app(*args, **kwargs):
+    """Universal application entrypoint supporting ASGI, WSGI, and BaseHTTPRequestHandler."""
+    if len(args) == 2 and callable(args[1]):
+        return DualHandler._handle_wsgi(args[0], args[1])
+    elif len(args) == 3 and isinstance(args[0], dict) and "type" in args[0]:
+        return handle_asgi(args[0], args[1], args[2])
+    return DualHandler(*args, **kwargs)
 
 
 def run_server(port: int = 8080):

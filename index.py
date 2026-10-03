@@ -9,14 +9,18 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.db import init_db
-from backend.api_server import BusinessPilotAPIHandler, DualHandler
+from backend.api_server import BusinessPilotAPIHandler, DualHandler, universal_app
 
-# Initialize database schema on cold start
-init_db()
+# Initialize database schema safely on cold start
+try:
+    init_db()
+except Exception as e:
+    print(f"Database init skipped: {e}")
 
-# Expose handler and app for Vercel runtime (supports both BaseHTTPRequestHandler and WSGI)
+# Expose handler and app for Vercel runtime (supports BaseHTTPRequestHandler, WSGI, and ASGI)
 handler = DualHandler
-app = handler
+app = universal_app
+application = universal_app
 
 if __name__ == "__main__":
     from http.server import HTTPServer

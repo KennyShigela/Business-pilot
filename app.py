@@ -1,7 +1,7 @@
 """
 Vercel application entrypoint alias for BusinessPilot.
 """
-from index import handler, app
+from index import handler, app, application
 
 if __name__ == "__main__":
     from http.server import HTTPServer

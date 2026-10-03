@@ -13,33 +13,52 @@ DEFAULT_DB_PATH = os.path.join(DB_DIR, "business_pilot.db")
 SCHEMA_PATH = os.path.join(DB_DIR, "schema.sql")
 
 
+def is_serverless_or_readonly() -> bool:
+    """Detect if running in a serverless or read-only cloud environment."""
+    if any(os.environ.get(k) for k in ("VERCEL", "VERCEL_ENV", "AWS_LAMBDA_FUNCTION_NAME", "LAMBDA_TASK_ROOT")):
+        return True
+    try:
+        test_file = os.path.join(DB_DIR, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("1")
+        os.remove(test_file)
+        return False
+    except (OSError, PermissionError):
+        return True
+
+
 def get_db_path() -> str:
     env_path = os.environ.get("BUSINESS_PILOT_DB")
     if env_path:
         return env_path
-    if os.environ.get("VERCEL"):
+    if is_serverless_or_readonly():
         tmp_path = "/tmp/business_pilot.db"
-        if not os.path.exists(tmp_path) and os.path.exists(DEFAULT_DB_PATH):
-            import shutil
-            try:
-                shutil.copy2(DEFAULT_DB_PATH, tmp_path)
-            except Exception:
-                pass
+        if not os.path.exists(tmp_path):
+            if os.path.exists(DEFAULT_DB_PATH):
+                import shutil
+                try:
+                    shutil.copy2(DEFAULT_DB_PATH, tmp_path)
+                except Exception as e:
+                    print(f"Warning: could not copy default DB to /tmp: {e}")
         return tmp_path
     return DEFAULT_DB_PATH
 
 
 def init_db(db_path: Optional[str] = None) -> None:
-    """Initialize database and run schema migrations."""
-    target_path = db_path or get_db_path()
-    os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
-    
-    with sqlite3.connect(target_path) as conn:
-        conn.execute("PRAGMA foreign_keys = ON;")
-        with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
-        conn.executescript(schema_sql)
-        conn.commit()
+    """Initialize database and run schema migrations safely."""
+    try:
+        target_path = db_path or get_db_path()
+        os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
+        
+        with sqlite3.connect(target_path) as conn:
+            conn.execute("PRAGMA foreign_keys = ON;")
+            if os.path.exists(SCHEMA_PATH):
+                with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+                    schema_sql = f.read()
+                conn.executescript(schema_sql)
+                conn.commit()
+    except Exception as e:
+        print(f"Warning: init_db encountered an issue ({e}). Continuing.")
 
 
 @contextmanager
