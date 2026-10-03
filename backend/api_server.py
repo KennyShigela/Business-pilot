@@ -44,6 +44,130 @@ def get_upload_dir() -> str:
     return upload_dir
 
 
+def is_endpoint(path: str, endpoint: str) -> bool:
+    """Matches path against target endpoint flexibly (handles trailing slashes and prefix variations)."""
+    clean = path.rstrip("/")
+    target = endpoint.rstrip("/")
+    if not clean or not target:
+        return clean == target
+    target_no_api = target[4:] if target.startswith("/api/") else None
+
+    if clean == target:
+        return True
+    if target_no_api and clean == target_no_api:
+        return True
+    if clean.endswith("/" + target.lstrip("/")):
+        return True
+    if target_no_api and clean.endswith("/" + target_no_api.lstrip("/")):
+        return True
+    return False
+
+
+def resolve_api_path(path: str, headers: Any = None, query: Optional[Dict[str, list]] = None, environ: Optional[Dict[str, Any]] = None) -> str:
+    """
+    Robustly resolves the canonical API path across all hosting platforms,
+    Vercel rewrites, serverless function adapters, and local development.
+    """
+    candidate_paths = []
+
+    # 1. Check explicit route parameters passed via query rewrite (e.g. ?__route__=$1 or ?route=...)
+    if query:
+        for q_key in ("__route__", "route", "_route", "__path__", "_path"):
+            val = query.get(q_key, [None])[0]
+            if val:
+                val_str = str(val).strip()
+                if not val_str.startswith("/"):
+                    val_str = "/" + val_str
+                if not val_str.startswith("/api/"):
+                    val_str = "/api" + val_str
+                candidate_paths.append(val_str)
+
+    # 2. Check rewrite headers from headers and environ (case-insensitive)
+    sources = []
+    if headers:
+        sources.append(headers)
+    if environ:
+        sources.append(environ)
+
+    header_keys = (
+        "x-matched-path",
+        "x-forwarded-uri",
+        "x-vercel-original-url",
+        "x-real-path",
+        "x-invoke-path",
+        "x-original-url",
+        "x-rewrite-path",
+        "x-forwarded-path",
+        "request_uri",
+        "raw_uri",
+        "http_x_matched_path",
+        "http_x_forwarded_uri",
+        "http_x_vercel_original_url",
+        "http_x_real_path",
+        "http_x_invoke_path",
+    )
+    for src in sources:
+        for hk in header_keys:
+            val = None
+            if hasattr(src, "get"):
+                val = (
+                    src.get(hk)
+                    or src.get(hk.upper())
+                    or src.get(hk.replace("-", "_"))
+                    or src.get(hk.replace("-", "_").upper())
+                )
+            if val and isinstance(val, (str, bytes)):
+                val_s = val.decode("utf-8", errors="replace") if isinstance(val, bytes) else str(val)
+                parsed_val = urllib.parse.urlparse(val_s).path.strip()
+                if parsed_val:
+                    candidate_paths.append(parsed_val)
+
+    # 3. Add the incoming path itself
+    parsed_incoming = urllib.parse.urlparse(path).path.strip()
+    candidate_paths.append(parsed_incoming)
+
+    # 4. Filter and select the best candidate
+    entrypoint_names = {
+        "/api/index.py", "/api/index", "/index.py", "/app.py", "/api", "/api/",
+        "api/index.py", "api/index", "index.py", "app.py", "api", "api/", "/", ""
+    }
+
+    chosen = None
+    for cand in candidate_paths:
+        clean = cand.rstrip("/")
+        if clean not in entrypoint_names:
+            chosen = clean
+            break
+
+    if not chosen:
+        chosen = candidate_paths[0].rstrip("/") if candidate_paths else "/"
+
+    # Normalize script prefixes like /api/index.py/api/auth/register -> /api/auth/register
+    for script_prefix in ("/api/index.py", "/api/index", "/index.py", "/app.py"):
+        if chosen.startswith(script_prefix + "/"):
+            chosen = chosen[len(script_prefix):]
+
+    if not chosen.startswith("/"):
+        chosen = "/" + chosen
+
+    # If it starts with /auth/ or /dashboard or /analytics etc. but missing /api, prefix with /api
+    if not chosen.startswith("/api"):
+        api_segments = (
+            "/auth/", "/dashboard", "/analytics", "/overview", "/sales",
+            "/customers", "/inventory", "/expenses", "/cashflow", "/forecasts",
+            "/alerts", "/reports", "/data-sources", "/import-google-sheet",
+            "/confirm-import", "/upload-file", "/upload-staged-file",
+            "/load-sample", "/system/", "/ai/", "/health", "/companies",
+            "/download-file"
+        )
+        for seg in api_segments:
+            if chosen == seg or chosen.startswith(seg):
+                chosen = "/api" + chosen
+                break
+
+    return chosen
+
+
 class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
     """HTTP Request Handler for BusinessPilot API and Frontend."""
 
@@ -88,23 +212,23 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
     def _handle_get_internal(self):
         parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
+        env = getattr(self, "environ", {})
+        path = resolve_api_path(parsed.path, headers=self.headers, query=query, environ=env)
 
-        # On Vercel with internal rewrites, the original requested route is in x-matched-path or x-forwarded-uri
-        if path in ("/api/index.py", "/api/index", "/index.py", "/app.py", "/api", "/api/"):
-            original_url = (
-                self.headers.get("x-matched-path")
-                or self.headers.get("x-forwarded-uri")
-                or self.headers.get("x-vercel-original-url")
-                or self.headers.get("x-real-path")
-            )
-            if original_url:
-                orig_parsed = urllib.parse.urlparse(original_url)
-                path = orig_parsed.path
-                orig_query = urllib.parse.parse_qs(orig_parsed.query)
-                if orig_query:
-                    query.update(orig_query)
+        # Merge any query parameters from headers/environ if present
+        for orig_key in ("x-matched-path", "x-forwarded-uri", "x-vercel-original-url", "request_uri"):
+            h_val = self.headers.get(orig_key) if hasattr(self.headers, "get") else None
+            if not h_val and env:
+                h_val = env.get(orig_key) or env.get(orig_key.upper())
+            if h_val:
+                try:
+                    q_extra = urllib.parse.parse_qs(urllib.parse.urlparse(str(h_val)).query)
+                    for qk, qv in q_extra.items():
+                        if qk not in query:
+                            query[qk] = qv
+                except Exception:
+                    pass
 
         # 1. Non-API routes: serve static frontend files immediately without DB access
         if not path.startswith("/api"):
@@ -134,11 +258,11 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             return
 
         # 2. Lightweight API routes without DB
-        if path == "/api/health":
+        if is_endpoint(path, "/api/health"):
             self._send_json({"status": "ok", "system": "BusinessPilot BOS", "version": "1.0.0"})
             return
 
-        elif path in ("/api", "/api/"):
+        elif is_endpoint(path, "/api") or path in ("/api", "/api/"):
             self._send_json({"status": "ok", "system": "BusinessPilot BOS API", "version": "1.0.0"})
             return
 
@@ -153,7 +277,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             except Exception:
                 company_id = "company-default"
 
-        if path == "/api/auth/session":
+        if is_endpoint(path, "/api/auth/session"):
             active_comp = None
             if req_company_id:
                 active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id,))
@@ -182,12 +306,12 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 })
             return
 
-        elif path == "/api/companies":
+        elif is_endpoint(path, "/api/companies"):
             companies = query_all("SELECT * FROM companies ORDER BY name ASC;")
             self._send_json({"companies": companies})
             return
 
-        elif path == "/api/dashboard":
+        elif is_endpoint(path, "/api/dashboard"):
             analytics = BusinessAnalyticsEngine(company_id)
             rev = analytics.get_revenue_summary()
             pnl = analytics.get_pnl_statement()
@@ -216,7 +340,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             })
             return
 
-        elif path == "/api/analytics":
+        elif is_endpoint(path, "/api/analytics"):
             analytics = BusinessAnalyticsEngine(company_id)
             self._send_json({
                 "revenue": analytics.get_revenue_summary(),
@@ -226,7 +350,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             })
             return
 
-        elif path == "/api/sales":
+        elif is_endpoint(path, "/api/sales"):
             limit = int(query.get("limit", [50])[0])
             sql = """
                 SELECT 
@@ -243,13 +367,13 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"sales": sales, "summary": summary})
             return
 
-        elif path == "/api/customers":
+        elif is_endpoint(path, "/api/customers"):
             analytics = BusinessAnalyticsEngine(company_id)
             cust_data = analytics.get_customer_profitability(limit=50)
             self._send_json(cust_data)
             return
 
-        elif path == "/api/inventory":
+        elif is_endpoint(path, "/api/inventory"):
             analytics = BusinessAnalyticsEngine(company_id)
             inv_data = analytics.get_inventory_health()
             sql_all = """
@@ -267,7 +391,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"summary": inv_data, "products": products})
             return
 
-        elif path == "/api/expenses":
+        elif is_endpoint(path, "/api/expenses"):
             analytics = BusinessAnalyticsEngine(company_id)
             exp_summary = analytics.get_expense_summary()
             sql_all = """
@@ -285,7 +409,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"summary": exp_summary, "expenses": expenses})
             return
 
-        elif path == "/api/cashflow":
+        elif is_endpoint(path, "/api/cashflow"):
             analytics = BusinessAnalyticsEngine(company_id)
             cash_summary = analytics.get_cash_flow_summary()
             # Projected next 60 days schedule
@@ -303,14 +427,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"cash_summary": cash_summary, "forecast_points": forecast_points})
             return
 
-        elif path == "/api/forecasts":
+        elif is_endpoint(path, "/api/forecasts"):
             engine = ForecastingEngine(company_id)
             rev_fc = engine.generate_revenue_forecast(horizon_months=3)
             stock_fc = engine.generate_inventory_stockout_forecast()
             self._send_json({"revenue_forecast": rev_fc, "stockout_forecast": stock_fc})
             return
 
-        elif path == "/api/alerts":
+        elif is_endpoint(path, "/api/alerts"):
             sev = query.get("severity", ["ALL"])[0]
             engine = EarlyWarningAlertEngine(company_id)
             # Evaluate & refresh alerts
@@ -319,7 +443,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"alerts": alerts, "count": len(alerts)})
             return
 
-        elif path == "/api/reports/pdf":
+        elif is_endpoint(path, "/api/reports/pdf"):
             try:
                 generator = ManagementReportGenerator(company_id)
                 pdf_bytes = generator.generate_pdf_report()
@@ -333,7 +457,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(e)}, status=500)
             return
 
-        elif path == "/api/reports/html":
+        elif is_endpoint(path, "/api/reports/html"):
             generator = ManagementReportGenerator(company_id)
             html_str = generator.generate_html_report()
             html_bytes = html_str.encode("utf-8")
@@ -344,7 +468,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(html_bytes)
             return
 
-        elif path == "/api/data-sources":
+        elif is_endpoint(path, "/api/data-sources"):
             comp_id = query.get("company_id", [None])[0]
             if not comp_id:
                 self._send_json({"files": [], "count": 0})
@@ -394,7 +518,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"files": files, "count": len(files)})
             return
 
-        elif path == "/api/download-file":
+        elif is_endpoint(path, "/api/download-file"):
             fname = query.get("file", ["LexCorp_Business_Operations.xlsx"])[0]
             safe_fname = os.path.basename(fname)
             fpath = os.path.join(PROJECT_ROOT, "uploads", safe_fname)
@@ -413,7 +537,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "File Not Found")
                 return
 
-        elif path == "/api/ai/status":
+        elif is_endpoint(path, "/api/ai/status"):
             has_env_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
             self._send_json({
                 "success": True,
@@ -445,24 +569,50 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
     def _handle_post_internal(self):
         parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
+        query = urllib.parse.parse_qs(parsed.query)
+        env = getattr(self, "environ", {})
+        path = resolve_api_path(parsed.path, headers=self.headers, query=query, environ=env)
 
-        # On Vercel with internal rewrites, the original requested route is in x-matched-path or x-forwarded-uri
-        if path in ("/api/index.py", "/api/index", "/index.py", "/app.py", "/api", "/api/"):
-            original_url = (
-                self.headers.get("x-matched-path")
-                or self.headers.get("x-forwarded-uri")
-                or self.headers.get("x-vercel-original-url")
-                or self.headers.get("x-real-path")
+        # Merge any query parameters from headers/environ if present
+        for orig_key in ("x-matched-path", "x-forwarded-uri", "x-vercel-original-url", "request_uri"):
+            h_val = self.headers.get(orig_key) if hasattr(self.headers, "get") else None
+            if not h_val and env:
+                h_val = env.get(orig_key) or env.get(orig_key.upper())
+            if h_val:
+                try:
+                    q_extra = urllib.parse.parse_qs(urllib.parse.urlparse(str(h_val)).query)
+                    for qk, qv in q_extra.items():
+                        if qk not in query:
+                            query[qk] = qv
+                except Exception:
+                    pass
+
+        # Extract body safely across BaseHTTPRequestHandler and WSGI/ASGI
+        try:
+            cl = int(
+                self.headers.get("content-length")
+                or self.headers.get("Content-Length")
+                or (env.get("CONTENT_LENGTH") if env else 0)
+                or 0
             )
-            if original_url:
-                orig_parsed = urllib.parse.urlparse(original_url)
-                path = orig_parsed.path
+        except Exception:
+            cl = 0
 
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length)
+        body = b""
+        if hasattr(self, "raw_body") and self.raw_body:
+            body = self.raw_body
+        elif cl > 0:
+            body = self.rfile.read(cl)
+        else:
+            try:
+                body = self.rfile.read()
+            except Exception:
+                body = b""
 
-        if path == "/api/load-sample":
+        if not body and hasattr(self, "rfile") and hasattr(self.rfile, "getvalue"):
+            body = self.rfile.getvalue()
+
+        if is_endpoint(path, "/api/load-sample"):
             company_id = "company-abc-supermarket-001"
             init_db()
 
@@ -488,7 +638,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "message": "Loaded ABC Supermarket Ltd sample dataset", "result": res})
             return
 
-        elif path == "/api/upload-file":
+        elif is_endpoint(path, "/api/upload-file"):
             try:
                 data = json.loads(body.decode("utf-8"))
                 file_name = data.get("file_name", "upload.xlsx")
@@ -521,7 +671,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
-        elif path == "/api/upload-staged-file":
+        elif is_endpoint(path, "/api/upload-staged-file"):
             try:
                 data = json.loads(body.decode("utf-8")) if body else {}
                 file_name = data.get("file_name", "LexCorp_Business_Operations.xlsx")
@@ -553,9 +703,10 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
-        elif path == "/api/auth/register":
+        elif is_endpoint(path, "/api/auth/register"):
             try:
-                data = json.loads(body.decode("utf-8"))
+                init_db()
+                data = json.loads(body.decode("utf-8")) if body else {}
                 company_name = data.get("company_name", "").strip()
                 user_name = data.get("user_name", "Admin").strip()
                 email = data.get("email", "").strip()
@@ -569,6 +720,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
                 company_id = f"company-{generate_uuid()[:8]}"
                 user_id = f"user-{generate_uuid()[:8]}"
+                user_email = email if email else f"{user_name.lower().replace(' ', '')}_{company_id[8:]}@example.com"
 
                 with get_connection() as conn:
                     conn.execute(
@@ -576,15 +728,22 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                         INSERT INTO companies (id, name, business_type, industry, country, currency, email)
                         VALUES (?, ?, ?, ?, ?, ?, ?);
                         """,
-                        (company_id, company_name, business_type, business_type, country, currency, email),
+                        (company_id, company_name, business_type, business_type, country, currency, user_email),
                     )
-                    conn.execute(
-                        """
-                        INSERT INTO users (id, company_id, name, email, password_hash)
-                        VALUES (?, ?, ?, ?, 'demo_hash');
-                        """,
-                        (user_id, company_id, user_name, email or f"{user_name.lower().replace(' ', '')}@example.com"),
-                    )
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id FROM users WHERE email = ?;", (user_email,))
+                    existing = cursor.fetchone()
+                    if existing:
+                        user_id = existing[0]
+                        conn.execute("UPDATE users SET company_id = ?, name = ? WHERE id = ?;", (company_id, user_name, user_id))
+                    else:
+                        conn.execute(
+                            """
+                            INSERT INTO users (id, company_id, name, email, password_hash)
+                            VALUES (?, ?, ?, ?, 'demo_hash');
+                            """,
+                            (user_id, company_id, user_name, user_email),
+                        )
 
                 self._send_json({
                     "success": True,
@@ -598,14 +757,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                     "user": {
                         "id": user_id,
                         "name": user_name,
-                        "email": email,
+                        "email": user_email,
                     },
                 })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
-        elif path == "/api/system/reset":
+        elif is_endpoint(path, "/api/system/reset"):
             try:
                 with get_connection() as conn:
                     conn.execute("PRAGMA foreign_keys = OFF;")
@@ -629,7 +788,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=500)
             return
 
-        elif path == "/api/import-google-sheet":
+        elif is_endpoint(path, "/api/import-google-sheet"):
             try:
                 data = json.loads(body.decode("utf-8"))
                 url = data.get("url", "").strip()
@@ -688,7 +847,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
-        elif path == "/api/confirm-import":
+        elif is_endpoint(path, "/api/confirm-import"):
             try:
                 data = json.loads(body.decode("utf-8"))
                 file_path = data.get("file_path")
@@ -708,7 +867,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
-        elif path == "/api/ai/query":
+        elif is_endpoint(path, "/api/ai/query"):
             try:
                 data = json.loads(body.decode("utf-8"))
                 question = data.get("question", "")
@@ -730,12 +889,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 class WSGIHandler(BusinessPilotAPIHandler):
     """Internal request handler for WSGI-adapted environments."""
 
-    def __init__(self, path: str, method: str, body: bytes, headers: Dict[str, str]):
+    def __init__(self, path: str, method: str, body: bytes, headers: Dict[str, str], environ: Optional[Dict[str, Any]] = None):
         self.path = path
         self.command = method
+        self.raw_body = body
         self.rfile = io.BytesIO(body)
         self.wfile = io.BytesIO()
         self.headers = headers
+        self.environ = environ or {}
         self.server_version = "BusinessPilot/1.0"
         self.sys_version = ""
         self.response_status = 200
@@ -791,8 +952,9 @@ async def handle_asgi(scope: Dict[str, Any], receive: Any, send: Any):
         k_str = k.decode("latin1") if isinstance(k, bytes) else str(k)
         v_str = v.decode("latin1") if isinstance(v, bytes) else str(v)
         headers[k_str.lower()] = v_str
+        headers[k_str.replace("_", "-").lower()] = v_str
 
-    inst = WSGIHandler(full_path, method, body, headers)
+    inst = WSGIHandler(full_path, method, body, headers, environ=scope)
     if method == "GET":
         inst.do_GET()
     elif method == "POST":
@@ -857,11 +1019,17 @@ class DualHandler(BusinessPilotAPIHandler):
         headers = {}
         for k, v in environ.items():
             if k.startswith("HTTP_"):
-                headers[k[5:].replace("_", "-").lower()] = v
+                header_name = k[5:].replace("_", "-").lower()
+                headers[header_name] = str(v)
+                headers[k[5:].lower()] = str(v)
             elif k in ("CONTENT_TYPE", "CONTENT_LENGTH"):
-                headers[k.replace("_", "-").lower()] = v
+                headers[k.replace("_", "-").lower()] = str(v)
+                headers[k.lower()] = str(v)
+            elif isinstance(v, (str, int, float)):
+                headers[k.lower()] = str(v)
+                headers[k.replace("_", "-").lower()] = str(v)
 
-        inst = WSGIHandler(full_path, method, body, headers)
+        inst = WSGIHandler(full_path, method, body, headers, environ=environ)
         if method == "GET":
             inst.do_GET()
         elif method == "POST":

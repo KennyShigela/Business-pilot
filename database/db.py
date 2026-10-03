@@ -40,6 +40,11 @@ def get_db_path() -> str:
                     shutil.copy2(DEFAULT_DB_PATH, tmp_path)
                 except Exception as e:
                     print(f"Warning: could not copy default DB to /tmp: {e}")
+            else:
+                try:
+                    init_db(tmp_path)
+                except Exception as e:
+                    print(f"Warning: could not initialize database at {tmp_path}: {e}")
         return tmp_path
     return DEFAULT_DB_PATH
 
