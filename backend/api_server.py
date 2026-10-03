@@ -275,14 +275,42 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
         if is_endpoint(path, "/api/auth/session"):
             active_comp = None
-            if req_company_id and req_company_id.strip():
-                active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id.strip(),))
+            if req_company_id and req_company_id.strip() and req_company_id.strip() != "unregistered-workspace":
+                cid = req_company_id.strip()
+                active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (cid,))
+                if not active_comp:
+                    # Auto-recover workspace if client passed credentials (handles multi-container serverless cold starts)
+                    c_name = query.get("company_name", [None])[0]
+                    if c_name and c_name.strip():
+                        c_curr = query.get("currency", ["TZS"])[0] or "TZS"
+                        b_type = query.get("business_type", ["Retail"])[0] or "Retail"
+                        u_name = query.get("user_name", ["Business Owner"])[0] or "Business Owner"
+                        u_email = f"owner_{cid[:8]}@example.com"
+                        try:
+                            with get_connection() as conn:
+                                conn.execute(
+                                    """
+                                    INSERT OR IGNORE INTO companies (id, name, business_type, industry, country, currency, email)
+                                    VALUES (?, ?, ?, ?, 'Tanzania', ?, ?);
+                                    """,
+                                    (cid, c_name.strip(), b_type, b_type, c_curr, u_email),
+                                )
+                                conn.execute(
+                                    """
+                                    INSERT OR IGNORE INTO users (id, company_id, name, email, password_hash)
+                                    VALUES (?, ?, ?, ?, 'demo_hash');
+                                    """,
+                                    (f"user-{cid[:8]}", cid, u_name.strip(), u_email),
+                                )
+                            active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (cid,))
+                        except Exception as e:
+                            print(f"[Workspace Recovery Notice] {e}")
 
             all_comps = query_all("SELECT id, name, business_type, currency, country FROM companies ORDER BY name ASC;")
             if active_comp:
                 user = query_one("SELECT id, name, email FROM users WHERE company_id = ? ORDER BY created_at ASC LIMIT 1;", (active_comp["id"],)) or {
-                    "id": "user-default",
-                    "name": "Business Owner",
+                    "id": f"user-{active_comp['id'][:8]}",
+                    "name": query.get("user_name", ["Business Owner"])[0] or "Business Owner",
                     "email": "",
                 }
                 self._send_json({
@@ -306,6 +334,22 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             return
 
         elif is_endpoint(path, "/api/dashboard"):
+            if company_id != "unregistered-workspace":
+                # Ensure company row exists in current container database
+                existing_comp = query_one("SELECT id FROM companies WHERE id = ?;", (company_id,))
+                if not existing_comp:
+                    c_name = query.get("company_name", ["My Business"])[0] or "My Business"
+                    c_curr = query.get("currency", ["TZS"])[0] or "TZS"
+                    b_type = query.get("business_type", ["Retail"])[0] or "Retail"
+                    try:
+                        with get_connection() as conn:
+                            conn.execute(
+                                "INSERT OR IGNORE INTO companies (id, name, business_type, industry, country, currency) VALUES (?, ?, ?, ?, 'Tanzania', ?);",
+                                (company_id, c_name, b_type, b_type, c_curr),
+                            )
+                    except Exception as e:
+                        print(f"[Dashboard Company Auto-Sync Notice] {e}")
+
             analytics = BusinessAnalyticsEngine(company_id)
             rev = analytics.get_revenue_summary()
             pnl = analytics.get_pnl_statement()
@@ -314,7 +358,13 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             trends = analytics.get_revenue_trends()
             briefing = analytics.generate_morning_briefing()
 
-            company = query_one("SELECT * FROM companies WHERE id = ?;", (company_id,)) or {}
+            company = query_one("SELECT * FROM companies WHERE id = ?;", (company_id,)) or {
+                "id": company_id,
+                "name": query.get("company_name", ["My Business"])[0] or "My Business",
+                "business_type": "Retail",
+                "industry": "Retail",
+                "currency": query.get("currency", ["TZS"])[0] or "TZS",
+            }
 
             self._send_json({
                 "company": company,

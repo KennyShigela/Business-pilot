@@ -6,9 +6,10 @@
 
 const API_BASE = ""; // Relative to host
 let currentCompanyId = localStorage.getItem("business_pilot_company_id") || localStorage.getItem("bizlens_company_id") || "";
-let currentCurrency = localStorage.getItem("business_pilot_currency") || localStorage.getItem("bizlens_currency") || "USD";
+let currentCurrency = localStorage.getItem("business_pilot_currency") || localStorage.getItem("bizlens_currency") || "TZS";
 let currentUserName = localStorage.getItem("business_pilot_user_name") || localStorage.getItem("bizlens_user_name") || "Business Owner";
 let currentCompanyName = localStorage.getItem("business_pilot_company_name") || localStorage.getItem("bizlens_company_name") || "My Business";
+let currentBusinessType = localStorage.getItem("business_pilot_business_type") || "Retail";
 let activeUploadedFilePath = null;
 
 // Chart Instances
@@ -84,8 +85,6 @@ function animateFigureCount(element, finalValue = null, duration = 1100) {
 
   if (finalValue !== null && finalValue !== undefined) {
     element.setAttribute("data-target-val", String(finalValue));
-  } else if (element.hasAttribute("data-target-val")) {
-    finalValue = element.getAttribute("data-target-val");
   } else {
     finalValue = element.innerText.trim();
     element.setAttribute("data-target-val", finalValue);
@@ -314,9 +313,34 @@ async function loadAllDashboardData() {
   }
 }
 
+function getCurrencySymbol(curr) {
+  const c = (curr || currentCurrency || "TZS").toUpperCase();
+  const map = {
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "TZS": "TZS",
+    "KES": "KSh",
+    "UGX": "USh",
+    "RWF": "RF",
+    "ZAR": "R",
+    "NGN": "₦",
+    "GHS": "GH₵",
+    "CAD": "CA$",
+    "AUD": "AU$",
+    "INR": "₹",
+    "JPY": "¥",
+    "CNY": "¥"
+  };
+  return map[c] || c;
+}
+
 function formatCurrency(val, currency = null) {
-  const curr = currency || currentCurrency || "USD";
-  if (val === undefined || val === null) return `${curr} 0`;
+  const curr = currency || currentCurrency || "TZS";
+  const sym = getCurrencySymbol(curr);
+  if (val === undefined || val === null) {
+    return sym.length > 1 ? `${sym} 0` : `${sym}0`;
+  }
   const abs = Math.abs(val);
   let formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 0 });
   if (abs >= 1000000) {
@@ -326,23 +350,29 @@ function formatCurrency(val, currency = null) {
   } else {
     formatted = `${val.toFixed(0)}`;
   }
-  return `${curr} ${formatted}`;
+  return sym.length > 1 ? `${sym} ${formatted}` : `${sym}${formatted}`;
 }
 
 function renderDashboard(data) {
   const { briefing, kpi_cards, inventory, cash, trends, company } = data;
 
+  if (company && company.currency) {
+    currentCurrency = company.currency;
+    localStorage.setItem("business_pilot_currency", currentCurrency);
+  }
+
   if (company && company.name) {
+    currentCompanyName = company.name;
     document.getElementById("sidebar-company-name").innerText = company.name;
-    document.getElementById("sidebar-company-sub").innerText = `${company.industry || "Retail"} · ${company.currency || "TZS"}`;
+    document.getElementById("sidebar-company-sub").innerText = `${company.industry || company.business_type || "Retail"} · ${currentCurrency}`;
     const avatar = document.getElementById("sidebar-company-avatar");
     if (avatar) avatar.innerText = company.name.charAt(0).toUpperCase();
   }
 
   // 1. KPI Cards
-  const isRevZero = kpi_cards.revenue.value === 0;
-  document.getElementById("kpi-rev-val").innerText = formatCurrency(kpi_cards.revenue.value);
-  const revGrowth = kpi_cards.revenue.growth;
+  const isRevZero = !kpi_cards || !kpi_cards.revenue || kpi_cards.revenue.value === 0;
+  document.getElementById("kpi-rev-val").innerText = formatCurrency(kpi_cards ? kpi_cards.revenue.value : 0, currentCurrency);
+  const revGrowth = kpi_cards ? kpi_cards.revenue.growth : 0;
   const growthEl = document.getElementById("kpi-rev-growth");
   if (isRevZero && revGrowth === 0) {
     growthEl.innerText = "0%";
@@ -352,37 +382,37 @@ function renderDashboard(data) {
     growthEl.className = revGrowth >= 0 ? "trend-up" : "trend-down";
   }
 
-  const isProfitZero = kpi_cards.net_profit.value === 0;
-  document.getElementById("kpi-profit-val").innerText = formatCurrency(kpi_cards.net_profit.value);
+  const isProfitZero = !kpi_cards || !kpi_cards.net_profit || kpi_cards.net_profit.value === 0;
+  document.getElementById("kpi-profit-val").innerText = formatCurrency(kpi_cards ? kpi_cards.net_profit.value : 0, currentCurrency);
   const profitMarginEl = document.getElementById("kpi-profit-margin");
-  if (isProfitZero && kpi_cards.net_profit.margin === 0) {
+  if (isProfitZero && (!kpi_cards || kpi_cards.net_profit.margin === 0)) {
     profitMarginEl.innerText = "Margin: 0%";
     profitMarginEl.className = "trend-up";
   } else {
-    profitMarginEl.innerText = `Margin: ${kpi_cards.net_profit.margin}%`;
-    profitMarginEl.className = kpi_cards.net_profit.value >= 0 ? "trend-up" : "trend-down";
+    profitMarginEl.innerText = `Margin: ${kpi_cards ? kpi_cards.net_profit.margin : 0}%`;
+    profitMarginEl.className = (kpi_cards && kpi_cards.net_profit.value >= 0) ? "trend-up" : "trend-down";
   }
 
-  const isExpZero = kpi_cards.expenses.value === 0;
-  document.getElementById("kpi-exp-val").innerText = formatCurrency(kpi_cards.expenses.value);
+  const isExpZero = !kpi_cards || !kpi_cards.expenses || kpi_cards.expenses.value === 0;
+  document.getElementById("kpi-exp-val").innerText = formatCurrency(kpi_cards ? kpi_cards.expenses.value : 0, currentCurrency);
   const expGrowthEl = document.getElementById("kpi-exp-growth");
-  if (isExpZero && kpi_cards.expenses.growth === 0) {
+  if (isExpZero && (!kpi_cards || kpi_cards.expenses.growth === 0)) {
     expGrowthEl.innerText = "0%";
     expGrowthEl.className = "trend-up";
   } else {
-    expGrowthEl.innerText = `${kpi_cards.expenses.growth >= 0 ? "↑" : "↓"} ${Math.abs(kpi_cards.expenses.growth)}%`;
-    expGrowthEl.className = kpi_cards.expenses.growth <= 0 ? "trend-up" : "trend-down";
+    expGrowthEl.innerText = `${kpi_cards ? (kpi_cards.expenses.growth >= 0 ? "↑" : "↓") : "↑"} ${Math.abs(kpi_cards ? kpi_cards.expenses.growth : 0)}%`;
+    expGrowthEl.className = (kpi_cards && kpi_cards.expenses.growth <= 0) ? "trend-up" : "trend-down";
   }
 
-  const isCashZero = kpi_cards.cash_balance.value === 0;
-  document.getElementById("kpi-cash-val").innerText = formatCurrency(kpi_cards.cash_balance.value);
+  const isCashZero = !kpi_cards || !kpi_cards.cash_balance || kpi_cards.cash_balance.value === 0;
+  document.getElementById("kpi-cash-val").innerText = formatCurrency(kpi_cards ? kpi_cards.cash_balance.value : 0, currentCurrency);
   const runwayEl = document.getElementById("kpi-cash-runway");
-  if (isCashZero && kpi_cards.cash_balance.runway_days === 0) {
+  if (isCashZero && (!kpi_cards || kpi_cards.cash_balance.runway_days === 0)) {
     runwayEl.innerText = "Runway: Awaiting Data";
     runwayEl.className = "trend-up";
   } else {
-    runwayEl.innerText = `Runway: ${kpi_cards.cash_balance.runway_days} days`;
-    runwayEl.className = kpi_cards.cash_balance.runway_days < 30 ? "trend-down" : "trend-up";
+    runwayEl.innerText = `Runway: ${kpi_cards ? kpi_cards.cash_balance.runway_days : 0} days`;
+    runwayEl.className = (kpi_cards && kpi_cards.cash_balance.runway_days < 30) ? "trend-down" : "trend-up";
   }
 
   animateFiguresInContainer(document.getElementById("view-dashboard"));
@@ -867,37 +897,38 @@ async function loadAnalyticsData() {
     const res = await fetch(`${API_BASE}/api/analytics?company_id=${currentCompanyId}`);
     const data = await res.json();
     const pnl = data.pnl;
+    const curr = currentCurrency || "TZS";
 
     const tbody = document.getElementById("pnl-table-body");
     tbody.innerHTML = `
       <tr>
         <td><strong>Gross Sales Revenue</strong></td>
-        <td>TZS ${pnl.revenue.toLocaleString()}</td>
+        <td>${curr} ${pnl.revenue.toLocaleString()}</td>
         <td>100.0%</td>
         <td><span class="badge-status badge-healthy">Top-Line</span></td>
       </tr>
       <tr>
         <td>Cost of Goods Sold (COGS)</td>
-        <td>TZS ${pnl.cogs.toLocaleString()}</td>
+        <td>${curr} ${pnl.cogs.toLocaleString()}</td>
         <td>${pnl.revenue > 0 ? ((pnl.cogs / pnl.revenue) * 100).toFixed(1) : 0}%</td>
         <td>Direct Costs</td>
       </tr>
       <tr style="background:#f8fafc; font-weight:600;">
         <td><strong>Gross Profit</strong></td>
-        <td><strong>TZS ${pnl.gross_profit.toLocaleString()}</strong></td>
+        <td><strong>${curr} ${pnl.gross_profit.toLocaleString()}</strong></td>
         <td><strong>${pnl.gross_margin_pct}%</strong></td>
         <td><span class="badge-status badge-healthy">Margin Bridge</span></td>
       </tr>
       <tr>
         <td>Operating Expenses (OPEX)</td>
-        <td>TZS ${pnl.operating_expenses.toLocaleString()}</td>
+        <td>${curr} ${pnl.operating_expenses.toLocaleString()}</td>
         <td>${pnl.revenue > 0 ? ((pnl.operating_expenses / pnl.revenue) * 100).toFixed(1) : 0}%</td>
         <td>Overhead</td>
       </tr>
       <tr style="background:#f1f5f9; font-weight:700;">
         <td><strong>Net Profit (EBITDA)</strong></td>
         <td style="color:${pnl.net_profit >= 0 ? '#10b981' : '#ef4444'};">
-          <strong>TZS ${pnl.net_profit.toLocaleString()}</strong>
+          <strong>${curr} ${pnl.net_profit.toLocaleString()}</strong>
         </td>
         <td><strong>${pnl.net_margin_pct}%</strong></td>
         <td><span class="badge-status ${pnl.net_profit >= 0 ? 'badge-paid' : 'badge-danger'}">${pnl.net_profit >= 0 ? 'Profitable' : 'Loss'}</span></td>
@@ -955,7 +986,7 @@ function renderPnlBridgeChart(pnl) {
           </div>
           <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem;">
             <span style="color:#64748b;">Amount:</span>
-            <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">TZS ${val.toLocaleString()}</strong>
+            <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">${formatCurrency(val)}</strong>
           </div>
         `;
       },
@@ -1148,6 +1179,7 @@ async function loadExpensesData() {
     const summary = data.summary || {};
     const categories = summary.categories || [];
     const expenses = data.expenses || [];
+    const curr = currentCurrency || "TZS";
 
     // 1. KPI Summary Cards
     const totalExpVal = document.getElementById("exp-total-val");
@@ -1163,7 +1195,7 @@ async function loadExpensesData() {
     const expTopShare = document.getElementById("exp-top-share");
     if (expTopShare) {
       expTopShare.innerText = topCat
-        ? `${topCat.percentage}% of OPEX (TZS ${Number(topCat.total_amount).toLocaleString()})`
+        ? `${topCat.percentage}% of OPEX (${curr} ${Number(topCat.total_amount).toLocaleString()})`
         : "No categories recorded";
     }
 
@@ -1186,7 +1218,7 @@ async function loadExpensesData() {
             <td><strong>${c.category}</strong></td>
             <td><span class="badge-status badge-healthy" style="background:#f1f5f9; color:#475569; font-weight:600;">${c.category_type}</span></td>
             <td><span class="badge-count">Σ ${c.transaction_count || 1} entries auto-summed</span></td>
-            <td style="font-weight:700;">TZS ${Number(c.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="font-weight:700;">${curr} ${Number(c.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td>
               <div style="display:flex; align-items:center;">
                 <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(100, c.percentage)}%;"></div></div>
@@ -1209,7 +1241,7 @@ async function loadExpensesData() {
             <td>${e.expense_date}</td>
             <td><strong>${e.category_name}</strong></td>
             <td>${e.description || "-"}</td>
-            <td style="font-weight:600;">TZS ${Number(e.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="font-weight:600;">${curr} ${Number(e.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td>${e.payment_method || "BANK"}</td>
             <td><span class="badge-status badge-paid">${e.status || "PAID"}</span></td>
           </tr>
@@ -1346,7 +1378,7 @@ async function loadCashFlowData() {
                 label: {
                   show: true,
                   position: "insideEndTop",
-                  formatter: "Zero Balance Baseline (TZS 0)",
+                  formatter: `Zero Balance Baseline (${formatCurrency(0)})`,
                   color: "#ef4444",
                   fontSize: 10.5,
                   fontWeight: 600,
@@ -2275,8 +2307,9 @@ function setupDemoButton() {
 // WORKSPACE & REGISTRATION MANAGEMENT
 // -------------------------------------------------------------
 function clearLocalSession() {
+  document.documentElement.classList.remove("has-workspace");
   currentCompanyId = "";
-  currentCurrency = "USD";
+  currentCurrency = "TZS";
   currentUserName = "Business Owner";
   currentCompanyName = "My Business";
   localStorage.removeItem("business_pilot_company_id");
@@ -2304,7 +2337,7 @@ function clearLocalSession() {
   if (sidebarCompName) sidebarCompName.innerText = "My Business";
 
   const sidebarCompSub = document.getElementById("sidebar-company-sub");
-  if (sidebarCompSub) sidebarCompSub.innerText = "Workspace · USD";
+  if (sidebarCompSub) sidebarCompSub.innerText = "Workspace · TZS";
 
   const dashGreeting = document.getElementById("dash-greeting");
   if (dashGreeting) dashGreeting.innerText = "Good morning";
@@ -2317,30 +2350,56 @@ async function checkAuthSession() {
       openRegistrationModal(false);
       return;
     }
-    const res = await fetch(`${API_BASE}/api/auth/session?company_id=${encodeURIComponent(currentCompanyId)}`);
+
+    const queryParams = new URLSearchParams({
+      company_id: currentCompanyId,
+      company_name: currentCompanyName,
+      currency: currentCurrency,
+      user_name: currentUserName,
+      business_type: currentBusinessType,
+    });
+
+    const res = await fetch(`${API_BASE}/api/auth/session?${queryParams.toString()}`);
     const data = await res.json();
     if (data.authenticated && data.company) {
       applyCompanySession(data.company, data.user);
       closeRegistrationModal();
       loadAllDashboardData();
     } else {
-      // Stale or deleted session -> clean up and enforce registration
+      // Retain active local registration so page refresh never drops user back to modal
+      applyCompanySession({
+        id: currentCompanyId,
+        name: currentCompanyName,
+        currency: currentCurrency,
+        business_type: currentBusinessType,
+      }, { name: currentUserName });
+      closeRegistrationModal();
+      loadAllDashboardData();
+    }
+  } catch (err) {
+    console.warn("Auth check network notice; maintaining registered workspace:", err);
+    if (currentCompanyId && currentCompanyId.trim()) {
+      applyCompanySession({
+        id: currentCompanyId,
+        name: currentCompanyName,
+        currency: currentCurrency,
+        business_type: currentBusinessType,
+      }, { name: currentUserName });
+      closeRegistrationModal();
+      loadAllDashboardData();
+    } else {
       clearLocalSession();
       openRegistrationModal(false);
     }
-  } catch (err) {
-    console.error("Auth check failed:", err);
-    clearLocalSession();
-    openRegistrationModal(false);
   }
 }
 
 function applyCompanySession(comp, user) {
   if (!comp) return;
   currentCompanyId = comp.id;
-  currentCurrency = comp.currency || "USD";
-  currentCompanyName = comp.name;
-  currentUserName = (user && user.name) ? user.name : "Business Owner";
+  currentCurrency = comp.currency || currentCurrency || "TZS";
+  currentCompanyName = comp.name || currentCompanyName || "My Business";
+  currentUserName = (user && user.name) ? user.name : (currentUserName || "Business Owner");
 
   localStorage.setItem("business_pilot_company_id", currentCompanyId);
   localStorage.setItem("business_pilot_currency", currentCurrency);
@@ -2350,6 +2409,34 @@ function applyCompanySession(comp, user) {
   localStorage.setItem("bizlens_currency", currentCurrency);
   localStorage.setItem("bizlens_company_name", currentCompanyName);
   localStorage.setItem("bizlens_user_name", currentUserName);
+
+  // Prevent registration modal from popping up on page refresh
+  document.documentElement.classList.add("has-workspace");
+
+  // Update table header currency labels
+  document.querySelectorAll(".currency-label").forEach(el => {
+    el.innerText = currentCurrency;
+  });
+  const pnlCurrLabel = document.getElementById("pnl-currency-label");
+  if (pnlCurrLabel) pnlCurrLabel.innerText = currentCurrency;
+
+  // Immediately update KPI cards with the selected currency (avoid hardcoded $0)
+  const revEl = document.getElementById("kpi-rev-val");
+  const profitEl = document.getElementById("kpi-profit-val");
+  const expEl = document.getElementById("kpi-exp-val");
+  const cashEl = document.getElementById("kpi-cash-val");
+  if (revEl && (!revEl.innerText || revEl.innerText === "0" || revEl.innerText.includes("$"))) {
+    revEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (profitEl && (!profitEl.innerText || profitEl.innerText === "0" || profitEl.innerText.includes("$"))) {
+    profitEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (expEl && (!expEl.innerText || expEl.innerText === "0" || expEl.innerText.includes("$"))) {
+    expEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (cashEl && (!cashEl.innerText || cashEl.innerText === "0" || cashEl.innerText.includes("$"))) {
+    cashEl.innerText = formatCurrency(0, currentCurrency);
+  }
 
   // Update Greeting & Badges
   const dashGreeting = document.getElementById("dash-greeting");
@@ -2377,12 +2464,12 @@ function applyCompanySession(comp, user) {
   if (sidebarCompName) sidebarCompName.innerText = currentCompanyName;
 
   const sidebarCompSub = document.getElementById("sidebar-company-sub");
-  if (sidebarCompSub) sidebarCompSub.innerText = `${comp.business_type || "Business"} · ${currentCurrency}`;
+  if (sidebarCompSub) sidebarCompSub.innerText = `${comp.business_type || currentBusinessType || "Business"} · ${currentCurrency}`;
 
   const onboardingTitle = document.getElementById("onboarding-comp-title");
   if (onboardingTitle) onboardingTitle.innerText = `${currentCompanyName} Workspace Ready`;
 
-  currentBusinessType = comp.business_type || "Other";
+  currentBusinessType = comp.business_type || currentBusinessType || "Retail";
   localStorage.setItem("business_pilot_business_type", currentBusinessType);
   applyIndustryCustomizations(currentBusinessType);
 
@@ -2486,12 +2573,18 @@ function openRegistrationModal(canCancel = true) {
   if (cancelBtn) {
     cancelBtn.style.display = canCancel ? "inline-block" : "none";
   }
-  if (modal) modal.style.display = "flex";
+  if (modal) {
+    modal.classList.add("force-open");
+    modal.style.display = "flex";
+  }
 }
 
 function closeRegistrationModal() {
   const modal = document.getElementById("registration-modal");
-  if (modal) modal.style.display = "none";
+  if (modal) {
+    modal.classList.remove("force-open");
+    modal.style.display = "none";
+  }
 }
 
 async function handleRegistrationSubmit(e) {
