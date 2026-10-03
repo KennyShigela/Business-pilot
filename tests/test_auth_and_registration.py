@@ -76,6 +76,9 @@ class TestAuthAndRegistration(unittest.TestCase):
         self.assertEqual(code, 200)
         data = json.loads(body.decode("utf-8"))
         self.assertIn("authenticated", data)
+        # For a new visitor with no company_id provided, authenticated must be False
+        self.assertFalse(data["authenticated"])
+        self.assertIsNone(data["company"])
 
     def test_register_company_and_user(self):
         payload = {
@@ -103,11 +106,11 @@ class TestAuthAndRegistration(unittest.TestCase):
         self.assertEqual(data2["company"]["id"], comp_id)
 
     def test_dashboard_with_empty_company(self):
-        # Register a brand new company
+        # Register a brand new company (e.g. Alex registering)
         payload = {
-            "company_name": "Fresh Start Co",
-            "user_name": "Owner",
-            "currency": "EUR",
+            "company_name": "Alex Fresh Business",
+            "user_name": "Alex",
+            "currency": "USD",
         }
         code, body = simulate_request("POST", "/api/auth/register", body_data=payload)
         comp_id = json.loads(body.decode("utf-8"))["company"]["id"]
@@ -118,6 +121,27 @@ class TestAuthAndRegistration(unittest.TestCase):
         dash_data = json.loads(body_dash.decode("utf-8"))
         self.assertEqual(dash_data["briefing"]["business_health"], "Awaiting Data")
         self.assertEqual(dash_data["kpi_cards"]["revenue"]["value"], 0.0)
+        self.assertEqual(dash_data["kpi_cards"]["net_profit"]["value"], 0.0)
+        self.assertEqual(dash_data["kpi_cards"]["expenses"]["value"], 0.0)
+        self.assertEqual(dash_data["kpi_cards"]["cash_balance"]["value"], 0.0)
+        self.assertFalse(dash_data["cash"]["runway_risk"])
+        self.assertEqual(dash_data["cash"]["monthly_burn_rate"], 0.0)
+        self.assertEqual(dash_data["trends"], [])
+
+        # Call forecasts for this empty company
+        code_fc, body_fc = simulate_request("GET", f"/api/forecasts?company_id={comp_id}")
+        self.assertEqual(code_fc, 200)
+        fc_data = json.loads(body_fc.decode("utf-8"))
+        self.assertIn("historical", fc_data["revenue_forecast"])
+        self.assertEqual(fc_data["revenue_forecast"]["historical"], [])
+
+        # Call AI query for this empty company
+        ai_payload = {"question": "What is my cash runway?", "company_id": comp_id}
+        code_ai, body_ai = simulate_request("POST", "/api/ai/query", body_data=ai_payload)
+        self.assertEqual(code_ai, 200)
+        ai_data = json.loads(body_ai.decode("utf-8"))
+        self.assertTrue(ai_data["success"])
+        self.assertIn("USD", ai_data["answer"]["explanation"])
 
     def test_system_reset(self):
         code, body = simulate_request("POST", "/api/system/reset")

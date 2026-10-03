@@ -347,6 +347,20 @@ class BusinessAnalyticsEngine:
         ar_data = query_one(sql_ar, (self.company_id,)) or {}
         total_ar = float(ar_data.get("total_ar", 0.0))
 
+        # If brand new company with no cash movement
+        if cash_in == 0.0 and cash_out == 0.0:
+            return {
+                "current_cash_balance": 0.0,
+                "total_cash_in": 0.0,
+                "total_cash_out": 0.0,
+                "accounts_receivable": round(total_ar, 2),
+                "unpaid_invoices_count": int(ar_data.get("unpaid_invoices", 0)),
+                "monthly_burn_rate": 0.0,
+                "runway_months": 0.0,
+                "runway_days": 0,
+                "runway_risk": False,
+            }
+
         # Monthly burn rate (average monthly expenses over last 3 months)
         sql_burn = """
             SELECT AVG(monthly_sum) AS avg_burn FROM (
@@ -359,8 +373,8 @@ class BusinessAnalyticsEngine:
             );
         """
         burn_row = query_one(sql_burn, (self.company_id,)) or {}
-        monthly_burn = float(burn_row.get("avg_burn") or 1.0)
-        runway_months = round(max(0.0, net_cash) / max(1.0, monthly_burn), 1)
+        monthly_burn = float(burn_row.get("avg_burn") or 0.0)
+        runway_months = round(max(0.0, net_cash) / max(1.0, monthly_burn), 1) if monthly_burn > 0 else 99.0
 
         return {
             "current_cash_balance": net_cash,

@@ -70,10 +70,10 @@
 
       <div class="sidebar-footer">
         <div class="company-chip">
-          <div class="company-avatar" id="sidebar-company-avatar">L</div>
+          <div class="company-avatar" id="sidebar-company-avatar">B</div>
           <div class="company-meta">
-            <div class="name" id="sidebar-company-name">LexCorp</div>
-            <div class="sub" id="sidebar-company-sub">Enterprise · TZS</div>
+            <div class="name" id="sidebar-company-name">My Business</div>
+            <div class="sub" id="sidebar-company-sub">Workspace · USD</div>
           </div>
         </div>
       </div>
@@ -102,8 +102,8 @@
             <span class="btn-label">Register Company</span>
           </button>
           <div class="user-badge" id="header-user-badge" title="Click to upload profile photo">
-            <div class="user-avatar" id="header-user-avatar">A</div>
-            <span id="header-user-name">Alex</span>
+            <div class="user-avatar" id="header-user-avatar">U</div>
+            <span id="header-user-name">User</span>
             <input type="file" id="user-avatar-input" accept="image/*" style="display:none;">
           </div>
         </div>
@@ -130,37 +130,37 @@
           <div class="kpi-grid">
             <div class="kpi-card">
               <div class="kpi-label">Revenue</div>
-              <div class="kpi-value" id="kpi-rev-val">TZS 31.7M</div>
+              <div class="kpi-value" id="kpi-rev-val">$0</div>
               <div class="kpi-sub">
-                <span class="trend-up" id="kpi-rev-growth">↑ 1.8%</span>
-                <span class="trend-sub">vs last month</span>
+                <span class="trend-up" id="kpi-rev-growth">0%</span>
+                <span class="trend-sub">vs last period</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Net Profit</div>
-              <div class="kpi-value" id="kpi-profit-val">TZS -44.4M</div>
+              <div class="kpi-value" id="kpi-profit-val">$0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-profit-margin">Margin: -139%</span>
+                <span class="trend-up" id="kpi-profit-margin">Margin: 0%</span>
                 <span class="trend-sub">post-OPEX</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Expenses</div>
-              <div class="kpi-value" id="kpi-exp-val">TZS 52.8M</div>
+              <div class="kpi-value" id="kpi-exp-val">$0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-exp-growth">↑ 6.1%</span>
-                <span class="trend-sub">higher OPEX</span>
+                <span class="trend-up" id="kpi-exp-growth">0%</span>
+                <span class="trend-sub">OPEX</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Cash Position</div>
-              <div class="kpi-value" id="kpi-cash-val">TZS -29.3M</div>
+              <div class="kpi-value" id="kpi-cash-val">$0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-cash-runway">⚠ 0 days runway</span>
-                <span class="trend-sub">runway cliff</span>
+                <span class="trend-up" id="kpi-cash-runway">Runway: Awaiting Data</span>
+                <span class="trend-sub">cash runway</span>
               </div>
             </div>
           </div>
@@ -181,7 +181,7 @@
             <div class="chart-card">
               <div class="card-header">
                 <div class="card-title">Business Performance: Revenue & Profit Trend</div>
-                <div class="trend-sub">Trailing Months (TZS)</div>
+                <div class="trend-sub" id="chart-rev-trend-sub">Performance Trend</div>
               </div>
               <div id="chart-rev-trend" class="chart-container"></div>
             </div>

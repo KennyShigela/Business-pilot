@@ -39,7 +39,17 @@ class ForecastingEngine:
         """
         history = self.get_historical_monthly_revenue()
         if not history:
-            return {"forecast_points": [], "drivers": [], "confidence_score": 0.50}
+            return {
+                "historical": [],
+                "forecast_points": [],
+                "overall_confidence": 0.0,
+                "confidence_score": 0.0,
+                "drivers": [{
+                    "type": "NEUTRAL",
+                    "title": "Awaiting Data",
+                    "desc": "Upload sales transactions or connect Google Sheets to generate intelligent predictive forecasts."
+                }],
+            }
 
         y = [float(h["revenue"]) for h in history]
         n = len(y)

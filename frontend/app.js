@@ -340,23 +340,50 @@ function renderDashboard(data) {
   }
 
   // 1. KPI Cards
+  const isRevZero = kpi_cards.revenue.value === 0;
   document.getElementById("kpi-rev-val").innerText = formatCurrency(kpi_cards.revenue.value);
   const revGrowth = kpi_cards.revenue.growth;
   const growthEl = document.getElementById("kpi-rev-growth");
-  growthEl.innerText = `${revGrowth >= 0 ? "↑" : "↓"} ${Math.abs(revGrowth)}%`;
-  growthEl.className = revGrowth >= 0 ? "trend-up" : "trend-down";
+  if (isRevZero && revGrowth === 0) {
+    growthEl.innerText = "0%";
+    growthEl.className = "trend-up";
+  } else {
+    growthEl.innerText = `${revGrowth >= 0 ? "↑" : "↓"} ${Math.abs(revGrowth)}%`;
+    growthEl.className = revGrowth >= 0 ? "trend-up" : "trend-down";
+  }
 
+  const isProfitZero = kpi_cards.net_profit.value === 0;
   document.getElementById("kpi-profit-val").innerText = formatCurrency(kpi_cards.net_profit.value);
-  document.getElementById("kpi-profit-margin").innerText = `Margin: ${kpi_cards.net_profit.margin}%`;
-  document.getElementById("kpi-profit-margin").className = kpi_cards.net_profit.value >= 0 ? "trend-up" : "trend-down";
+  const profitMarginEl = document.getElementById("kpi-profit-margin");
+  if (isProfitZero && kpi_cards.net_profit.margin === 0) {
+    profitMarginEl.innerText = "Margin: 0%";
+    profitMarginEl.className = "trend-up";
+  } else {
+    profitMarginEl.innerText = `Margin: ${kpi_cards.net_profit.margin}%`;
+    profitMarginEl.className = kpi_cards.net_profit.value >= 0 ? "trend-up" : "trend-down";
+  }
 
+  const isExpZero = kpi_cards.expenses.value === 0;
   document.getElementById("kpi-exp-val").innerText = formatCurrency(kpi_cards.expenses.value);
-  document.getElementById("kpi-exp-growth").innerText = `${kpi_cards.expenses.growth >= 0 ? "↑" : "↓"} ${Math.abs(kpi_cards.expenses.growth)}%`;
+  const expGrowthEl = document.getElementById("kpi-exp-growth");
+  if (isExpZero && kpi_cards.expenses.growth === 0) {
+    expGrowthEl.innerText = "0%";
+    expGrowthEl.className = "trend-up";
+  } else {
+    expGrowthEl.innerText = `${kpi_cards.expenses.growth >= 0 ? "↑" : "↓"} ${Math.abs(kpi_cards.expenses.growth)}%`;
+    expGrowthEl.className = kpi_cards.expenses.growth <= 0 ? "trend-up" : "trend-down";
+  }
 
+  const isCashZero = kpi_cards.cash_balance.value === 0;
   document.getElementById("kpi-cash-val").innerText = formatCurrency(kpi_cards.cash_balance.value);
   const runwayEl = document.getElementById("kpi-cash-runway");
-  runwayEl.innerText = `Runway: ${kpi_cards.cash_balance.runway_days} days`;
-  runwayEl.className = kpi_cards.cash_balance.runway_days < 30 ? "trend-down" : "trend-up";
+  if (isCashZero && kpi_cards.cash_balance.runway_days === 0) {
+    runwayEl.innerText = "Runway: Awaiting Data";
+    runwayEl.className = "trend-up";
+  } else {
+    runwayEl.innerText = `Runway: ${kpi_cards.cash_balance.runway_days} days`;
+    runwayEl.className = kpi_cards.cash_balance.runway_days < 30 ? "trend-down" : "trend-up";
+  }
 
   animateFiguresInContainer(document.getElementById("view-dashboard"));
 
@@ -368,6 +395,9 @@ function renderDashboard(data) {
   if (healthBadge) {
     if (briefing.business_health === "Profitable") {
       healthBadge.innerText = "● Business Health: Profitable";
+      healthBadge.className = "badge-status badge-healthy";
+    } else if (briefing.business_health === "Awaiting Data") {
+      healthBadge.innerText = "● Business Health: Awaiting Data";
       healthBadge.className = "badge-status badge-healthy";
     } else {
       healthBadge.innerText = "● Business Health: Runway Attention Required";
@@ -394,13 +424,14 @@ function renderDashboard(data) {
   }
 
   if (inventory.locked_capital > 0) {
+    const curr = (company && company.currency) || currentCurrency || "USD";
     alertsList.innerHTML += `
       <div class="alert-item">
         <div class="alert-icon" style="display:flex; align-items:center; justify-content:center;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
         </div>
         <div class="alert-content">
-          <div class="title">TZS ${inventory.locked_capital.toLocaleString()} locked in dead inventory</div>
+          <div class="title">${curr} ${inventory.locked_capital.toLocaleString()} locked in dead inventory</div>
           <div class="desc">No sales detected for these items in over 60 days.</div>
         </div>
       </div>
@@ -416,6 +447,20 @@ function renderDashboard(data) {
         <div class="alert-content">
           <div class="title">Cash runway warning (${cash.runway_days} days remaining)</div>
           <div class="desc">Operating burn exceeds collected customer receivables.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (!alertsList.innerHTML) {
+    alertsList.innerHTML = `
+      <div class="alert-item" style="border-left-color: #94a3b8; background: #f8fafc;">
+        <div class="alert-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        </div>
+        <div class="alert-content">
+          <div class="title" style="color: #475569;">No critical issues detected</div>
+          <div class="desc">Operations are clear. Upload spreadsheets to activate real-time operational alerts.</div>
         </div>
       </div>
     `;
@@ -439,9 +484,10 @@ function renderRevenueTrendChart(trends) {
   if (revTrendChart) revTrendChart.dispose();
   revTrendChart = echarts.init(chartDom);
 
-  const periods = trends.map(t => t.period);
-  const revenues = trends.map(t => t.revenue);
-  const profits = trends.map(t => t.gross_profit);
+  const isEmpty = !trends || trends.length === 0;
+  const periods = isEmpty ? ["Month 1", "Month 2", "Month 3", "Month 4"] : trends.map(t => t.period);
+  const revenues = isEmpty ? [0, 0, 0, 0] : trends.map(t => t.revenue);
+  const profits = isEmpty ? [0, 0, 0, 0] : trends.map(t => t.gross_profit);
 
   const option = {
     tooltip: {
@@ -462,6 +508,9 @@ function renderRevenueTrendChart(trends) {
       },
       formatter: (params) => {
         let period = params[0] ? params[0].name : "";
+        if (isEmpty) {
+          return `<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">${period} · Awaiting Data</div><div style="font-size:0.82rem; color:#475569;">Upload sales records to generate historical revenue trends.</div>`;
+        }
         let html = `<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">${period} Financial Performance</div>`;
         params.forEach(item => {
           const color = item.color;
@@ -528,7 +577,12 @@ function renderRevenueTrendChart(trends) {
         color: "#94a3b8",
         fontSize: 11,
         fontWeight: 500,
-        formatter: (val) => `${(val / 1000000).toFixed(0)}M`,
+        formatter: (val) => {
+          if (val === 0) return "0";
+          if (Math.abs(val) >= 1000000) return `${(val / 1000000).toFixed(0)}M`;
+          if (Math.abs(val) >= 1000) return `${(val / 1000).toFixed(0)}K`;
+          return `${val}`;
+        },
       },
     },
     series: [
@@ -615,12 +669,15 @@ async function loadAndRenderExpenseDonut() {
     if (expenseDonutChart) expenseDonutChart.dispose();
     expenseDonutChart = echarts.init(chartDom);
 
-    const chartData = categories.map(c => ({
+    const hasData = categories && categories.length > 0 && totalExp > 0;
+    const chartData = hasData ? categories.map(c => ({
       name: c.category,
       value: c.total_amount,
-    }));
+    })) : [
+      { name: "Awaiting Expenses", value: 1, itemStyle: { color: "#e2e8f0" } }
+    ];
 
-    const modernColors = [
+    const modernColors = hasData ? [
       "#3b82f6", // Royal Blue
       "#10b981", // Emerald
       "#8b5cf6", // Violet
@@ -631,14 +688,14 @@ async function loadAndRenderExpenseDonut() {
       "#6366f1", // Indigo
       "#14b8a6", // Teal
       "#64748b", // Slate
-    ];
+    ] : ["#e2e8f0"];
 
     const option = {
       baseOption: {
         color: modernColors,
         title: {
           text: formatCurrency(totalExp),
-          subtext: "TOTAL OPEX",
+          subtext: hasData ? "TOTAL OPEX" : "NO EXPENSES YET",
           left: "28%",
           top: "42%",
           textAlign: "center",
@@ -664,6 +721,9 @@ async function loadAndRenderExpenseDonut() {
           extraCssText: "box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03); backdrop-filter: blur(8px); border-radius: 10px;",
           textStyle: { color: "#0f172a", fontFamily: "Inter, system-ui, sans-serif" },
           formatter: (params) => {
+            if (!hasData) {
+              return '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">Operating Expenses</div><div style="font-size:0.82rem; color:#475569;">No expenses recorded yet.</div>';
+            }
             const val = Number(params.value || 0);
             return `
               <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Expense Cost Center</div>
@@ -683,6 +743,7 @@ async function loadAndRenderExpenseDonut() {
           },
         },
         legend: {
+          show: hasData,
           type: "scroll",
           orient: "vertical",
           left: "52%",
@@ -966,16 +1027,21 @@ async function loadSalesData() {
     const res = await fetch(`${API_BASE}/api/sales?company_id=${currentCompanyId}&limit=50`);
     const data = await res.json();
     const sales = data.sales || [];
+    const curr = currentCurrency || "USD";
 
     const tbody = document.getElementById("sales-table-body");
+    if (sales.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">No sales records found. Upload an Excel or Google Sheets file to view sales transactions.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = sales.map(s => `
       <tr>
         <td><strong>${s.invoice_number}</strong></td>
         <td>${s.customer_name || 'Walk-in'}</td>
         <td>${s.sale_date}</td>
-        <td>TZS ${s.total.toLocaleString()}</td>
-        <td>TZS ${s.cost_of_goods.toLocaleString()}</td>
-        <td style="color:${s.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">TZS ${s.profit.toLocaleString()}</td>
+        <td>${curr} ${s.total.toLocaleString()}</td>
+        <td>${curr} ${s.cost_of_goods.toLocaleString()}</td>
+        <td style="color:${s.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">${curr} ${s.profit.toLocaleString()}</td>
         <td><span class="badge-status ${s.payment_status === 'Paid' ? 'badge-paid' : 'badge-warning'}">${s.payment_status}</span></td>
       </tr>
     `).join("");
@@ -992,15 +1058,20 @@ async function loadCustomersData() {
     const res = await fetch(`${API_BASE}/api/customers?company_id=${currentCompanyId}`);
     const data = await res.json();
     const customers = data.top_customers || [];
+    const curr = currentCurrency || "USD";
 
     const tbody = document.getElementById("customers-table-body");
+    if (customers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">No customer records found. Upload an Excel or Google Sheets file to analyze customer unit economics.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = customers.map(c => `
       <tr>
         <td><strong>${c.customer_name}</strong></td>
         <td>${c.customer_type || 'Retail'}</td>
         <td>${c.total_orders}</td>
-        <td>TZS ${c.total_revenue.toLocaleString()}</td>
-        <td>TZS ${c.net_profit.toLocaleString()}</td>
+        <td>${curr} ${c.total_revenue.toLocaleString()}</td>
+        <td>${curr} ${c.net_profit.toLocaleString()}</td>
         <td style="font-weight:600; color:${c.margin_pct >= 25 ? '#10b981' : '#f59e0b'};">${c.margin_pct}%</td>
         <td>
           <span class="badge-status ${c.margin_pct >= 25 ? 'badge-healthy' : 'badge-low'}">
@@ -1021,16 +1092,21 @@ async function loadInventoryData() {
   try {
     const res = await fetch(`${API_BASE}/api/inventory?company_id=${currentCompanyId}`);
     const data = await res.json();
-    const summary = data.summary;
+    const summary = data.summary || {};
     const products = data.products || [];
+    const curr = currentCurrency || "USD";
 
-    document.getElementById("inv-total-val").innerText = `TZS ${summary.total_inventory_value.toLocaleString()}`;
-    document.getElementById("inv-low-count").innerText = summary.low_stock_count;
-    document.getElementById("inv-dead-val").innerText = `TZS ${summary.locked_capital_slow_moving.toLocaleString()}`;
+    document.getElementById("inv-total-val").innerText = `${curr} ${(summary.total_inventory_value || 0).toLocaleString()}`;
+    document.getElementById("inv-low-count").innerText = summary.low_stock_count || 0;
+    document.getElementById("inv-dead-val").innerText = `${curr} ${(summary.locked_capital_slow_moving || 0).toLocaleString()}`;
 
     animateFiguresInContainer(document.getElementById("view-inventory"));
 
     const tbody = document.getElementById("inventory-table-body");
+    if (products.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:2rem;">No inventory products found. Upload an inventory spreadsheet to track stock levels.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = products.map(p => {
       const isLow = p.stock_on_hand <= p.reorder_level;
       const isOut = p.stock_on_hand <= 0;
@@ -1050,9 +1126,9 @@ async function loadInventoryData() {
           <td>${p.name}</td>
           <td style="font-weight:600;">${p.stock_on_hand}</td>
           <td>${p.reorder_level}</td>
-          <td>TZS ${p.cost_price.toLocaleString()}</td>
-          <td>TZS ${p.selling_price.toLocaleString()}</td>
-          <td>TZS ${p.stock_value.toLocaleString()}</td>
+          <td>${curr} ${p.cost_price.toLocaleString()}</td>
+          <td>${curr} ${p.selling_price.toLocaleString()}</td>
+          <td>${curr} ${p.stock_value.toLocaleString()}</td>
           <td><span class="badge-status ${statusClass}">${statusLabel}</span></td>
         </tr>
       `;
@@ -1159,7 +1235,7 @@ async function loadCashFlowData() {
     document.getElementById("cash-ar-val").innerText = formatCurrency(cash.accounts_receivable);
     document.getElementById("cash-unpaid-invoices").innerText = `${cash.unpaid_invoices_count} unpaid customer invoices`;
     document.getElementById("cash-burn-val").innerText = formatCurrency(cash.monthly_burn_rate);
-    document.getElementById("cash-runway-countdown").innerText = `Runway: ${cash.runway_days} days`;
+    document.getElementById("cash-runway-countdown").innerText = cash.monthly_burn_rate > 0 ? `Runway: ${cash.runway_days} days` : "Runway: Awaiting Data";
 
     animateFiguresInContainer(document.getElementById("view-cashflow"));
 
@@ -1675,17 +1751,23 @@ function renderForecastChart(revFc) {
   if (forecastChartInstance) forecastChartInstance.dispose();
   forecastChartInstance = echarts.init(chartDom);
 
-  const histPeriods = revFc.historical.map(h => h.month);
-  const histRevs = revFc.historical.map(h => h.revenue);
+  const historical = (revFc && revFc.historical) || [];
+  const forecastPoints = (revFc && revFc.forecast_points) || [];
 
-  const fcPeriods = revFc.forecast_points.map(p => p.period);
-  const fcPreds = revFc.forecast_points.map(p => p.predicted_revenue);
-  const fcLowers = revFc.forecast_points.map(p => p.lower_bound);
-  const fcUppers = revFc.forecast_points.map(p => p.upper_bound);
+  const histPeriods = historical.map(h => h.month);
+  const histRevs = historical.map(h => h.revenue);
+
+  const fcPeriods = forecastPoints.map(p => p.period);
+  const fcPreds = forecastPoints.map(p => p.predicted_revenue);
+  const fcLowers = forecastPoints.map(p => p.lower_bound);
+  const fcUppers = forecastPoints.map(p => p.upper_bound);
 
   const allPeriods = [...histPeriods, ...fcPeriods];
-  const histSeriesData = [...histRevs, ...fcPeriods.map(() => null)];
-  const predSeriesData = [...histPeriods.map((_, i) => i === histPeriods.length - 1 ? histRevs[i] : null), ...fcPreds];
+  if (allPeriods.length === 0) {
+    allPeriods.push("Month +1", "Month +2", "Month +3");
+  }
+  const histSeriesData = histPeriods.length > 0 ? [...histRevs, ...fcPeriods.map(() => null)] : [0, 0, 0];
+  const predSeriesData = fcPeriods.length > 0 ? [...histPeriods.map((_, i) => i === histPeriods.length - 1 ? histRevs[i] : null), ...fcPreds] : [0, 0, 0];
   const lowerSeriesData = [...histPeriods.map(() => null), ...fcLowers];
   const upperSeriesData = [...histPeriods.map(() => null), ...fcUppers];
 
@@ -2418,10 +2500,11 @@ async function handleRegistrationSubmit(e) {
       applyCompanySession(data.company, data.user);
       closeRegistrationModal();
 
-      // Show onboarding card and route user directly to Data Sources upload
+      // Show onboarding card and route user directly to General Overview
       const onboardingCard = document.getElementById("onboarding-welcome-card");
       if (onboardingCard) onboardingCard.style.display = "block";
-      switchView("datasources");
+      switchView("dashboard");
+      loadAllDashboardData();
     } else {
       alert("Registration failed: " + data.error);
     }

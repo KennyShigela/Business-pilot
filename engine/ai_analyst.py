@@ -178,18 +178,21 @@ class AIBusinessAnalyst:
 
             status = "profitable" if pnl["is_profitable"] else "constrained by high operating expenses"
 
+            curr = self.currency
+            categories_str = ', '.join([c['category'] + ' (' + str(c['percentage']) + '%)' for c in exp.get('categories', [])[:3]]) if exp.get('categories') else "No expense records yet"
+
             explanation = (
-                f"Net profit is currently <b>TZS {net_prof:,.0f}</b> (Net Margin: {net_margin:.1f}%), {status}.<br><br>"
+                f"Net profit is currently <b>{curr} {net_prof:,.0f}</b> (Net Margin: {net_margin:.1f}%), {status}.<br><br>"
                 f"<b>Three primary factors explain this performance:</b><br>"
-                f"1. <b>Gross Product Margins:</b> Gross profit is <b>TZS {gross_prof:,.0f}</b> ({gross_margin:.1f}% of revenue), indicating core product margins remain healthy.<br>"
-                f"2. <b>Operating Expenses (OPEX):</b> Total operating overhead is <b>TZS {opex:,.0f}</b> (absorbing {(opex/max(1.0, rev)*100):.1f}% of gross receipts).<br>"
-                f"3. <b>Largest Cost Centers:</b> {', '.join([c['category'] + ' (' + str(c['percentage']) + '%)' for c in exp['categories'][:3]])}."
+                f"1. <b>Gross Product Margins:</b> Gross profit is <b>{curr} {gross_prof:,.0f}</b> ({gross_margin:.1f}% of revenue), indicating core product margins.<br>"
+                f"2. <b>Operating Expenses (OPEX):</b> Total operating overhead is <b>{curr} {opex:,.0f}</b> (absorbing {(opex/max(1.0, rev)*100):.1f}% of gross receipts).<br>"
+                f"3. <b>Largest Cost Centers:</b> {categories_str}."
             )
             action_recommendation = "Audit secondary administrative expenses and renegotiate supplier terms to preserve bottom-line contribution."
             citations = [
-                {"metric": "Revenue", "value": f"TZS {rev:,.0f}"},
+                {"metric": "Revenue", "value": f"{curr} {rev:,.0f}"},
                 {"metric": "Gross Margin", "value": f"{gross_margin:.1f}%"},
-                {"metric": "Operating Expenses", "value": f"TZS {opex:,.0f}"},
+                {"metric": "Operating Expenses", "value": f"{curr} {opex:,.0f}"},
                 {"metric": "Net Margin", "value": f"{net_margin:.1f}%"},
             ]
 
@@ -200,21 +203,35 @@ class AIBusinessAnalyst:
             burn = cash["monthly_burn_rate"]
             runway = cash["runway_days"]
             ar = cash["accounts_receivable"]
+            curr = self.currency
 
-            explanation = (
-                f"Current verified cash position is <b>TZS {bal:,.0f}</b> with an estimated <b>{runway} days of operating runway</b>.<br><br>"
-                f"<b>Key liquidity dynamics:</b><br>"
-                f"1. <b>Operating Burn:</b> Monthly disbursements average <b>TZS {burn:,.0f}</b>.<br>"
-                f"2. <b>Uncollected Receivables:</b> You have <b>TZS {ar:,.0f}</b> pending across {cash['unpaid_invoices_count']} customer invoices.<br>"
-                f"3. <b>Runway Health:</b> {'🔴 CRITICAL: Cash runway is under 30 days.' if runway <= 30 else '✓ Runway within safe operating buffer.'}"
-            )
-            action_recommendation = "Accelerate follow-ups on outstanding receivables to inject liquidity without taking external credit."
-            citations = [
-                {"metric": "Cash Balance", "value": f"TZS {bal:,.0f}"},
-                {"metric": "Monthly Burn", "value": f"TZS {burn:,.0f}"},
-                {"metric": "Runway Days", "value": f"{runway} days"},
-                {"metric": "Accounts Receivable", "value": f"TZS {ar:,.0f}"},
-            ]
+            if bal == 0.0 and burn == 0.0:
+                explanation = (
+                    f"Current verified cash position for {self.company_name} is <b>{curr} 0</b> with no operating burn recorded yet.<br><br>"
+                    f"Upload your cash receipts and payment records to monitor working capital and runway in real time."
+                )
+                action_recommendation = "Upload business transactions to begin tracking liquidity and burn rate."
+                citations = [
+                    {"metric": "Cash Balance", "value": f"{curr} 0"},
+                    {"metric": "Monthly Burn", "value": f"{curr} 0"},
+                    {"metric": "Runway Days", "value": "Awaiting Data"},
+                ]
+            else:
+                runway_note = '🔴 CRITICAL: Cash runway is under 30 days.' if runway <= 30 else '✓ Runway within safe operating buffer.'
+                explanation = (
+                    f"Current verified cash position is <b>{curr} {bal:,.0f}</b> with an estimated <b>{runway} days of operating runway</b>.<br><br>"
+                    f"<b>Key liquidity dynamics:</b><br>"
+                    f"1. <b>Operating Burn:</b> Monthly disbursements average <b>{curr} {burn:,.0f}</b>.<br>"
+                    f"2. <b>Uncollected Receivables:</b> You have <b>{curr} {ar:,.0f}</b> pending across {cash['unpaid_invoices_count']} customer invoices.<br>"
+                    f"3. <b>Runway Health:</b> {runway_note}"
+                )
+                action_recommendation = "Accelerate follow-ups on outstanding receivables to inject liquidity without taking external credit."
+                citations = [
+                    {"metric": "Cash Balance", "value": f"{curr} {bal:,.0f}"},
+                    {"metric": "Monthly Burn", "value": f"{curr} {burn:,.0f}"},
+                    {"metric": "Runway Days", "value": f"{runway} days"},
+                    {"metric": "Accounts Receivable", "value": f"{curr} {ar:,.0f}"},
+                ]
 
         elif intent == "INVENTORY_ANALYSIS":
             tool_calls.append("get_inventory()")
@@ -222,56 +239,89 @@ class AIBusinessAnalyst:
             low_count = inv["low_stock_count"]
             dead_val = inv["locked_capital_slow_moving"]
             tot_val = inv["total_inventory_value"]
+            curr = self.currency
 
-            sample_low = ", ".join([item["name"] + f" ({item['stock']:.0f} left)" for item in inv["low_stock_alerts"][:3]])
-
-            explanation = (
-                f"Total inventory on hand is valued at <b>TZS {tot_val:,.0f}</b> across {inv['total_sku_count']} products.<br><br>"
-                f"<b>Two operational risks require attention:</b><br>"
-                f"1. <b>Low Stock Warnings:</b> {low_count} products have reached or breached their reorder point: {sample_low or 'None'}.<br>"
-                f"2. <b>Trapped Dead Capital:</b> <b>TZS {dead_val:,.0f}</b> is locked in {inv['slow_moving_count']} items with no sales recorded in over 60 days."
-            )
-            action_recommendation = "Liquidate or discount stagnant lines to free up capital, and order replenishment stock for fast-moving items."
-            citations = [
-                {"metric": "Inventory Valuation", "value": f"TZS {tot_val:,.0f}"},
-                {"metric": "Low Stock SKUs", "value": f"{low_count} items"},
-                {"metric": "Dead Stock Value", "value": f"TZS {dead_val:,.0f}"},
-            ]
+            if inv["total_sku_count"] == 0:
+                explanation = (
+                    f"No inventory products recorded for {self.company_name} yet.<br><br>"
+                    f"Upload an inventory spreadsheet with SKU, stock quantity, cost price, and selling price to track stock valuation and reorder alerts."
+                )
+                action_recommendation = "Upload your product catalog in the Data tab to enable stock tracking."
+                citations = [
+                    {"metric": "Inventory Valuation", "value": f"{curr} 0"},
+                    {"metric": "Tracked SKUs", "value": "0"},
+                ]
+            else:
+                sample_low = ", ".join([item["name"] + f" ({item['stock']:.0f} left)" for item in inv["low_stock_alerts"][:3]])
+                explanation = (
+                    f"Total inventory on hand is valued at <b>{curr} {tot_val:,.0f}</b> across {inv['total_sku_count']} products.<br><br>"
+                    f"<b>Two operational risks require attention:</b><br>"
+                    f"1. <b>Low Stock Warnings:</b> {low_count} products have reached or breached their reorder point: {sample_low or 'None'}.<br>"
+                    f"2. <b>Trapped Dead Capital:</b> <b>{curr} {dead_val:,.0f}</b> is locked in {inv['slow_moving_count']} items with no sales recorded in over 60 days."
+                )
+                action_recommendation = "Liquidate or discount stagnant lines to free up capital, and order replenishment stock for fast-moving items."
+                citations = [
+                    {"metric": "Inventory Valuation", "value": f"{curr} {tot_val:,.0f}"},
+                    {"metric": "Low Stock SKUs", "value": f"{low_count} items"},
+                    {"metric": "Dead Stock Value", "value": f"{curr} {dead_val:,.0f}"},
+                ]
 
         elif intent == "CUSTOMER_ANALYSIS":
             tool_calls.append("get_customer_profitability()")
             cust = self.tools.get_customer_profitability()
-            top_whale = cust["whales"][0] if cust["whales"] else None
-            top_drainer = cust["drainers"][0] if cust["drainers"] else None
+            top_whale = cust["whales"][0] if cust.get("whales") else None
+            top_drainer = cust["drainers"][0] if cust.get("drainers") else None
+            curr = self.currency
 
-            explanation = (
-                f"Analyzed {cust['total_tracked_customers']} active customer accounts for revenue and net contribution margin.<br><br>"
-                f"1. <b>Top Whale Account:</b> {top_whale['customer_name'] if top_whale else 'Walk-in'} generates <b>TZS {top_whale['total_revenue']:,.0f}</b> at a healthy {top_whale['margin_pct']}% margin.<br>"
-                f"2. <b>Margin Watch Account:</b> {top_drainer['customer_name'] if top_drainer else 'None'} generates lower unit profitability ({top_drainer['margin_pct'] if top_drainer else '0'}% margin)."
-            )
-            action_recommendation = "Protect relationships with top wholesale accounts and limit excessive discounting on margin-watch accounts."
-            citations = [
-                {"metric": "Tracked Customers", "value": f"{cust['total_tracked_customers']}"},
-                {"metric": "Top Account Revenue", "value": f"TZS {top_whale['total_revenue']:,.0f}" if top_whale else "N/A"},
-            ]
+            if cust["total_tracked_customers"] == 0:
+                explanation = (
+                    f"No customer accounts recorded for {self.company_name} yet.<br><br>"
+                    f"Importing sales transactions will automatically compute customer lifetime value and identify your top profit drivers."
+                )
+                action_recommendation = "Import customer sales orders to uncover your highest-margin accounts."
+                citations = [
+                    {"metric": "Tracked Customers", "value": "0"},
+                ]
+            else:
+                explanation = (
+                    f"Analyzed {cust['total_tracked_customers']} active customer accounts for revenue and net contribution margin.<br><br>"
+                    f"1. <b>Top Whale Account:</b> {top_whale['customer_name'] if top_whale else 'Walk-in'} generates <b>{curr} {top_whale['total_revenue']:,.0f}</b> at a healthy {top_whale['margin_pct']}% margin.<br>"
+                    f"2. <b>Margin Watch Account:</b> {top_drainer['customer_name'] if top_drainer else 'None'} generates lower unit profitability ({top_drainer['margin_pct'] if top_drainer else '0'}% margin)."
+                )
+                action_recommendation = "Protect relationships with top wholesale accounts and limit excessive discounting on margin-watch accounts."
+                citations = [
+                    {"metric": "Tracked Customers", "value": f"{cust['total_tracked_customers']}"},
+                    {"metric": "Top Account Revenue", "value": f"{curr} {top_whale['total_revenue']:,.0f}" if top_whale else "N/A"},
+                ]
 
         elif intent == "FORECAST_ANALYSIS":
             tool_calls.append("get_forecast()")
             fc = self.tools.get_forecast()
-            pts = fc["forecast_points"]
+            pts = fc.get("forecast_points", [])
+            curr = self.currency
 
-            pts_desc = "<br>".join([f"• <b>{p['period']}:</b> Projected TZS {p['predicted_revenue']:,.0f} (Range: TZS {p['lower_bound']:,.0f} – TZS {p['upper_bound']:,.0f})" for p in pts[:3]])
-
-            explanation = (
-                f"Time-series damped exponential smoothing projects the following 3-month baseline:<br><br>"
-                f"{pts_desc}<br><br>"
-                f"<b>Forecast Confidence:</b> {int(fc['overall_confidence'] * 100)}% based on historical monthly sales consistency."
-            )
-            action_recommendation = "Align inventory purchasing with the 60-day projected demand baseline."
-            citations = [
-                {"metric": "Confidence Score", "value": f"{int(fc['overall_confidence'] * 100)}%"},
-                {"metric": "Next Month Pred", "value": f"TZS {pts[0]['predicted_revenue']:,.0f}" if pts else "N/A"},
-            ]
+            if not pts:
+                explanation = (
+                    f"No historical sales data has been recorded for {self.company_name} yet.<br><br>"
+                    f"Upload an Excel sales sheet or connect Google Sheets to activate automated time-series forecasting."
+                )
+                action_recommendation = "Upload your past sales data in the Data tab to train the predictive model."
+                citations = [
+                    {"metric": "Historical Data", "value": "Awaiting Data"},
+                    {"metric": "Forecast Status", "value": "Pending Transactions"},
+                ]
+            else:
+                pts_desc = "<br>".join([f"• <b>{p['period']}:</b> Projected {curr} {p['predicted_revenue']:,.0f} (Range: {curr} {p['lower_bound']:,.0f} – {curr} {p['upper_bound']:,.0f})" for p in pts[:3]])
+                explanation = (
+                    f"Time-series damped exponential smoothing projects the following 3-month baseline:<br><br>"
+                    f"{pts_desc}<br><br>"
+                    f"<b>Forecast Confidence:</b> {int(fc.get('overall_confidence', 0.5) * 100)}% based on historical monthly sales consistency."
+                )
+                action_recommendation = "Align inventory purchasing with the 60-day projected demand baseline."
+                citations = [
+                    {"metric": "Confidence Score", "value": f"{int(fc.get('overall_confidence', 0.5) * 100)}%"},
+                    {"metric": "Next Month Pred", "value": f"{curr} {pts[0]['predicted_revenue']:,.0f}" if pts else "N/A"},
+                ]
 
         else:  # GENERAL_BRIEFING / ALERT_ANALYSIS
             tool_calls.append("detect_anomalies()")

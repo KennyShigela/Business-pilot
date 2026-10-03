@@ -279,10 +279,8 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
         if is_endpoint(path, "/api/auth/session"):
             active_comp = None
-            if req_company_id:
-                active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id,))
-            if not active_comp:
-                active_comp = query_one("SELECT * FROM companies ORDER BY created_at DESC LIMIT 1;")
+            if req_company_id and req_company_id.strip():
+                active_comp = query_one("SELECT * FROM companies WHERE id = ?;", (req_company_id.strip(),))
 
             all_comps = query_all("SELECT id, name, business_type, currency, country FROM companies ORDER BY name ASC;")
             if active_comp:
