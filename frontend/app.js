@@ -2274,19 +2274,63 @@ function setupDemoButton() {
 // -------------------------------------------------------------
 // WORKSPACE & REGISTRATION MANAGEMENT
 // -------------------------------------------------------------
+function clearLocalSession() {
+  currentCompanyId = "";
+  currentCurrency = "USD";
+  currentUserName = "Business Owner";
+  currentCompanyName = "My Business";
+  localStorage.removeItem("business_pilot_company_id");
+  localStorage.removeItem("business_pilot_currency");
+  localStorage.removeItem("business_pilot_company_name");
+  localStorage.removeItem("business_pilot_user_name");
+  localStorage.removeItem("bizlens_company_id");
+  localStorage.removeItem("bizlens_currency");
+  localStorage.removeItem("bizlens_company_name");
+  localStorage.removeItem("bizlens_user_name");
+
+  const headerUserName = document.getElementById("header-user-name");
+  if (headerUserName) headerUserName.innerText = "User";
+
+  const headerUserAvatar = document.getElementById("header-user-avatar");
+  if (headerUserAvatar) {
+    headerUserAvatar.style.backgroundImage = "none";
+    headerUserAvatar.innerText = "U";
+  }
+
+  const sidebarCompAvatar = document.getElementById("sidebar-company-avatar");
+  if (sidebarCompAvatar) sidebarCompAvatar.innerText = "B";
+
+  const sidebarCompName = document.getElementById("sidebar-company-name");
+  if (sidebarCompName) sidebarCompName.innerText = "My Business";
+
+  const sidebarCompSub = document.getElementById("sidebar-company-sub");
+  if (sidebarCompSub) sidebarCompSub.innerText = "Workspace · USD";
+
+  const dashGreeting = document.getElementById("dash-greeting");
+  if (dashGreeting) dashGreeting.innerText = "Good morning";
+}
+
 async function checkAuthSession() {
   try {
-    const res = await fetch(`${API_BASE}/api/auth/session?company_id=${currentCompanyId}`);
+    if (!currentCompanyId || !currentCompanyId.trim()) {
+      clearLocalSession();
+      openRegistrationModal(false);
+      return;
+    }
+    const res = await fetch(`${API_BASE}/api/auth/session?company_id=${encodeURIComponent(currentCompanyId)}`);
     const data = await res.json();
     if (data.authenticated && data.company) {
       applyCompanySession(data.company, data.user);
+      closeRegistrationModal();
       loadAllDashboardData();
     } else {
-      // No active workspace exists -> open registration modal
+      // Stale or deleted session -> clean up and enforce registration
+      clearLocalSession();
       openRegistrationModal(false);
     }
   } catch (err) {
     console.error("Auth check failed:", err);
+    clearLocalSession();
     openRegistrationModal(false);
   }
 }

@@ -363,24 +363,42 @@ class AIBusinessAnalyst:
             except Exception as e:
                 print(f"[Gemini Context Processing Error] {e}")
 
-        # Persist conversation if ID provided
-        if conversation_id:
+        # Persist conversation to SQLite database
+        try:
             with get_connection() as conn:
-                mid = generate_uuid()
+                conv_id = conversation_id
+                if not conv_id:
+                    existing_conv = query_one(
+                        "SELECT id FROM ai_conversations WHERE company_id = ? ORDER BY created_at DESC LIMIT 1;",
+                        (self.company_id,)
+                    )
+                    if existing_conv:
+                        conv_id = existing_conv["id"]
+                    else:
+                        conv_id = generate_uuid()
+                        conn.execute(
+                            "INSERT INTO ai_conversations (id, company_id, title) VALUES (?, ?, ?);",
+                            (conv_id, self.company_id, question[:60])
+                        )
+
+                user_msg_id = generate_uuid()
+                asst_msg_id = generate_uuid()
                 conn.execute(
                     """
                     INSERT INTO ai_messages (id, conversation_id, role, content, tool_calls, citations)
                     VALUES (?, ?, 'USER', ?, ?, ?);
                     """,
-                    (generate_uuid(), conversation_id, question, json.dumps([]), json.dumps([])),
+                    (user_msg_id, conv_id, question, json.dumps([]), json.dumps([])),
                 )
                 conn.execute(
                     """
                     INSERT INTO ai_messages (id, conversation_id, role, content, tool_calls, citations)
                     VALUES (?, ?, 'ASSISTANT', ?, ?, ?);
                     """,
-                    (mid, conversation_id, explanation, json.dumps(tool_calls), json.dumps(citations)),
+                    (asst_msg_id, conv_id, explanation, json.dumps(tool_calls), json.dumps(citations)),
                 )
+        except Exception as e:
+            print(f"[AI Conversation Persistence Notice] {e}")
 
         return {
             "intent": intent,

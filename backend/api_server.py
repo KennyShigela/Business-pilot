@@ -268,14 +268,10 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
         # 3. Resolve company ID safely: from query parameter, or most recent company in DB
         req_company_id = query.get("company_id", [None])[0]
-        if req_company_id:
-            company_id = req_company_id
+        if req_company_id and req_company_id.strip():
+            company_id = req_company_id.strip()
         else:
-            try:
-                latest_comp = query_one("SELECT id FROM companies ORDER BY created_at DESC LIMIT 1;")
-                company_id = latest_comp["id"] if latest_comp else "company-default"
-            except Exception:
-                company_id = "company-default"
+            company_id = "unregistered-workspace"
 
         if is_endpoint(path, "/api/auth/session"):
             active_comp = None
