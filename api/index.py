@@ -10,10 +10,11 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from database.db import init_db
-from backend.api_server import BusinessPilotAPIHandler
+from backend.api_server import BusinessPilotAPIHandler, DualHandler
 
 # Initialize database schema on serverless cold start
 init_db()
 
-# Vercel BaseHTTPRequestHandler entrypoint
-handler = BusinessPilotAPIHandler
+# Expose handler and app for Vercel runtime (supports both BaseHTTPRequestHandler and WSGI)
+handler = DualHandler
+app = handler

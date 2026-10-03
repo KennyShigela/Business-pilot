@@ -10,7 +10,9 @@ import re
 import glob
 import urllib.parse
 import urllib.request
+import io
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.client import responses
 from typing import Dict, Any, Optional
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +32,16 @@ from engine.reports import ManagementReportGenerator
 from engine.ai_analyst import AIBusinessAnalyst
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+
+
+def get_upload_dir() -> str:
+    """Return upload directory path, safely defaulting to /tmp on serverless (Vercel)."""
+    if os.environ.get("VERCEL"):
+        upload_dir = "/tmp/uploads"
+    else:
+        upload_dir = os.path.join(PROJECT_ROOT, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    return upload_dir
 
 
 class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
@@ -71,6 +83,21 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
+        # On Vercel with internal rewrites, the original requested route is in x-matched-path or x-forwarded-uri
+        if path in ("/api/index.py", "/api/index", "/index.py", "/app.py", "/api", "/api/"):
+            original_url = (
+                self.headers.get("x-matched-path")
+                or self.headers.get("x-forwarded-uri")
+                or self.headers.get("x-vercel-original-url")
+                or self.headers.get("x-real-path")
+            )
+            if original_url:
+                orig_parsed = urllib.parse.urlparse(original_url)
+                path = orig_parsed.path
+                orig_query = urllib.parse.parse_qs(orig_parsed.query)
+                if orig_query:
+                    query.update(orig_query)
+
         # Resolve company ID: from query parameter, or most recent company in DB
         req_company_id = query.get("company_id", [None])[0]
         if req_company_id:
@@ -82,6 +109,10 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         # API Routes
         if path == "/api/health":
             self._send_json({"status": "ok", "system": "BusinessPilot BOS", "version": "1.0.0"})
+            return
+
+        elif path in ("/api", "/api/"):
+            self._send_json({"status": "ok", "system": "BusinessPilot BOS API", "version": "1.0.0"})
             return
 
         elif path == "/api/auth/session":
@@ -370,6 +401,13 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             clean_path = "index.html"
 
         file_path = os.path.join(FRONTEND_DIR, clean_path)
+        if not os.path.exists(file_path):
+            file_path = os.path.join(PROJECT_ROOT, clean_path)
+        if not os.path.exists(file_path) and not clean_path.startswith("api"):
+            file_path = os.path.join(FRONTEND_DIR, "index.html")
+            if not os.path.exists(file_path):
+                file_path = os.path.join(PROJECT_ROOT, "index.html")
+
         content_type = "text/html"
         if clean_path.endswith(".css"):
             content_type = "text/css"
@@ -385,6 +423,18 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        # On Vercel with internal rewrites, the original requested route is in x-matched-path or x-forwarded-uri
+        if path in ("/api/index.py", "/api/index", "/index.py", "/app.py", "/api", "/api/"):
+            original_url = (
+                self.headers.get("x-matched-path")
+                or self.headers.get("x-forwarded-uri")
+                or self.headers.get("x-vercel-original-url")
+                or self.headers.get("x-real-path")
+            )
+            if original_url:
+                orig_parsed = urllib.parse.urlparse(original_url)
+                path = orig_parsed.path
 
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
@@ -425,8 +475,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 import base64
                 file_bytes = base64.b64decode(file_base64)
                 
-                upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
-                os.makedirs(upload_dir, exist_ok=True)
+                upload_dir = get_upload_dir()
                 save_path = os.path.join(upload_dir, file_name)
                 with open(save_path, "wb") as f:
                     f.write(file_bytes)
@@ -455,8 +504,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 file_name = data.get("file_name", "LexCorp_Business_Operations.xlsx")
                 company_id = data.get("company_id", "company-16cb6e90")
 
-                upload_dir = os.path.join(PROJECT_ROOT, "uploads")
-                os.makedirs(upload_dir, exist_ok=True)
+                upload_dir = get_upload_dir()
                 target_path = os.path.join(upload_dir, file_name)
 
                 if not os.path.exists(target_path):
@@ -579,8 +627,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 sheet_id = sheet_match.group(1)
                 export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
 
-                upload_dir = os.path.join(PROJECT_ROOT, "uploads")
-                os.makedirs(upload_dir, exist_ok=True)
+                upload_dir = get_upload_dir()
                 save_path = os.path.join(upload_dir, f"google_sheet_{sheet_id[:8]}.xlsx")
 
                 # Try direct download
@@ -655,6 +702,87 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             return
 
         self.send_error(404, "Endpoint not found")
+
+
+class WSGIHandler(BusinessPilotAPIHandler):
+    """Internal request handler for WSGI-adapted environments."""
+
+    def __init__(self, path: str, method: str, body: bytes, headers: Dict[str, str]):
+        self.path = path
+        self.command = method
+        self.rfile = io.BytesIO(body)
+        self.wfile = io.BytesIO()
+        self.headers = headers
+        self.server_version = "BusinessPilot/1.0"
+        self.sys_version = ""
+        self.response_status = 200
+        self.response_headers = []
+
+    def send_response(self, code: int, message: Optional[str] = None):
+        self.response_status = code
+
+    def send_header(self, keyword: str, value: Any):
+        self.response_headers.append((keyword, str(value)))
+
+    def end_headers(self):
+        pass
+
+    def send_error(self, code: int, message: Optional[str] = None, explain: Optional[str] = None):
+        self.response_status = code
+        self.response_headers.append(("Content-Type", "application/json"))
+        err_body = json.dumps({"error": message or str(code)}).encode("utf-8")
+        self.wfile.write(err_body)
+
+
+class DualHandler(BusinessPilotAPIHandler):
+    """
+    Polymorphic handler that works seamlessly as:
+    1. BaseHTTPRequestHandler for Vercel Serverless Functions and local HTTPServer
+    2. WSGI callable (environ, start_response) for Vercel Python Framework presets / WSGI servers
+    """
+
+    def __new__(cls, *args, **kwargs):
+        if len(args) == 2 and callable(args[1]):
+            # WSGI callable invocation: (environ, start_response)
+            environ, start_response = args
+            return cls._handle_wsgi(environ, start_response)
+        return super().__new__(cls)
+
+    @classmethod
+    def _handle_wsgi(cls, environ: Dict[str, Any], start_response: Any):
+        path = environ.get("PATH_INFO", "")
+        query = environ.get("QUERY_STRING", "")
+        full_path = f"{path}?{query}" if query else path
+        method = environ.get("REQUEST_METHOD", "GET").upper()
+
+        try:
+            cl = int(environ.get("CONTENT_LENGTH", 0))
+        except (ValueError, TypeError):
+            cl = 0
+        input_stream = environ.get("wsgi.input")
+        body = input_stream.read(cl) if (input_stream and cl > 0) else b""
+
+        headers = {}
+        for k, v in environ.items():
+            if k.startswith("HTTP_"):
+                headers[k[5:].replace("_", "-").lower()] = v
+            elif k in ("CONTENT_TYPE", "CONTENT_LENGTH"):
+                headers[k.replace("_", "-").lower()] = v
+
+        inst = WSGIHandler(full_path, method, body, headers)
+        if method == "GET":
+            inst.do_GET()
+        elif method == "POST":
+            inst.do_POST()
+        elif method == "OPTIONS":
+            inst.do_OPTIONS()
+        else:
+            inst.send_error(405, "Method Not Allowed")
+
+        reason = responses.get(inst.response_status, "OK")
+        status_line = f"{inst.response_status} {reason}"
+        start_response(status_line, inst.response_headers)
+        return [inst.wfile.getvalue()]
 
 
 def run_server(port: int = 8080):
