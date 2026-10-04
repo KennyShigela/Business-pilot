@@ -2119,6 +2119,48 @@ function handleFileUpload(file) {
 
 let currentUploadCurrencyInfo = null;
 
+function showToastNotification(message, title = "Currency Converted & Mapped", type = "info", duration = 8500) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast-notification toast-${type}`;
+
+  const icon = type === "success" ? "✓" : (type === "warning" ? "⚠️" : "💱");
+
+  toast.innerHTML = `
+    <div class="toast-icon">${icon}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <button class="toast-close" title="Dismiss">&times;</button>
+  `;
+
+  const closeBtn = toast.querySelector(".toast-close");
+  const dismiss = () => {
+    toast.classList.remove("toast-visible");
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 400);
+  };
+
+  closeBtn.addEventListener("click", dismiss);
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("toast-visible");
+  });
+
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+}
+
 function renderMappingReview(uploadResult) {
   const mappingCard = document.getElementById("mapping-card");
   const tbody = document.getElementById("mapping-table-body");
@@ -2139,20 +2181,34 @@ function renderMappingReview(uploadResult) {
     const src = currentUploadCurrencyInfo.source_currency || "USD";
     const tgt = currentUploadCurrencyInfo.target_currency || currentCurrency || "TZS";
     const rate = currentUploadCurrencyInfo.exchange_rate || 1.0;
+    const tgtName = currentUploadCurrencyInfo.target_display_name || (tgt === "TZS" ? "TZS Shillings" : tgt);
 
     if (currentUploadCurrencyInfo.conversion_needed) {
+      const notifMsg = currentUploadCurrencyInfo.notification_message ||
+        `The file you uploaded had currencies different from ${tgtName}. We have converted the currencies to ${tgtName} and mapped the data.`;
+
+      // Trigger user-requested short notification toast
+      showToastNotification(notifMsg, "Currency Converted & Mapped", "info", 9000);
+
       banner.style.background = "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)";
       banner.style.borderColor = "#93c5fd";
       if (iconEl) iconEl.innerText = "💱";
+      
+      const liveBadge = currentUploadCurrencyInfo.is_live_rate 
+        ? `<span style="font-size:0.7rem; font-weight:600; background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; margin-left:6px;">🟢 Live Online Rate</span>`
+        : `<span style="font-size:0.7rem; font-weight:600; background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:4px; margin-left:6px;">Market Benchmark</span>`;
+
       if (titleEl) {
-        titleEl.innerHTML = `Auto-Converting Currency <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${src} ➔ ${tgt}</span>`;
+        titleEl.innerHTML = `Auto-Converting Currency <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${src} ➔ ${tgt}</span> ${liveBadge}`;
       }
-      const exampleAmount = (100 * rate).toLocaleString(undefined, { maximumFractionDigits: 2 });
       if (descEl) {
-        descEl.innerHTML = `Spreadsheet figures detected in <strong>${src}</strong> will automatically convert to your business currency (<strong>${tgt}</strong>). (e.g. 100 ${src} ≈ ${exampleAmount} ${tgt}).`;
+        descEl.innerHTML = `
+          <div style="font-weight:600; color:#1e3a8a; margin-bottom:3px;">${notifMsg}</div>
+          <div style="font-size:0.78rem; color:#64748b;">Live transfer rate: 1 ${src} ≈ ${rate >= 1 ? rate.toLocaleString(undefined, {maximumFractionDigits: 2}) : rate.toFixed(6)} ${tgt} (${currentUploadCurrencyInfo.rate_source || "Online Transfer Rate"}).</div>
+        `;
       }
       if (inputContainer) inputContainer.style.display = "flex";
-      if (rateLabel) rateLabel.innerText = `Rate (1 ${src} =):`;
+      if (rateLabel) rateLabel.innerText = `Live Rate (1 ${src} =):`;
       if (rateUnit) rateUnit.innerText = tgt;
       if (rateInput) rateInput.value = rate;
     } else {
@@ -2163,7 +2219,7 @@ function renderMappingReview(uploadResult) {
         titleEl.innerHTML = `Currency Matched <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${tgt} (100% Match)</span>`;
       }
       if (descEl) {
-        descEl.innerHTML = `Spreadsheet amounts match your business currency (<strong>${tgt}</strong>). No conversion needed.`;
+        descEl.innerHTML = `Spreadsheet amounts match your business currency (<strong>${tgtName}</strong>). No conversion needed.`;
       }
       if (inputContainer) inputContainer.style.display = "none";
     }
@@ -2240,6 +2296,13 @@ async function confirmImport() {
         ? ` (Auto-converted from ${result.result.currency_conversion.source_currency} to ${result.result.currency_conversion.target_currency})`
         : "";
       pText.innerText = `Import Complete! ${result.result.total_rows_imported} rows imported.${convNotice}`;
+
+      // Show completion toast notification
+      if (result.result && result.result.currency_conversion && result.result.currency_conversion.converted) {
+        const notif = result.result.currency_conversion.notification_message ||
+          `The file you uploaded had currencies different from ${result.result.currency_conversion.target_display_name || 'your registered currency'}. We have converted the currencies and mapped the data.`;
+        showToastNotification(notif, "Import & Mapping Complete", "success", 8000);
+      }
 
       setTimeout(() => {
         document.getElementById("mapping-card").style.display = "none";

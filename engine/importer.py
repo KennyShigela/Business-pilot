@@ -14,7 +14,7 @@ from database.db import get_connection, generate_uuid, execute_write
 from engine.ingestion import SpreadsheetReader, StagingManager
 from engine.mapping import SchemaMapper
 from engine.quality import DataQualityAuditor
-from engine.currency import CurrencyDetector, get_exchange_rate
+from engine.currency import CurrencyDetector, get_exchange_rate, get_currency_display_name
 
 
 class BusinessDataImporter:
@@ -108,6 +108,13 @@ class BusinessDataImporter:
                 (status, total_rows_imported, total_rows_failed, job_id),
             )
 
+        target_display = get_currency_display_name(self.company_currency)
+        source_display = get_currency_display_name(detected_source)
+        notif_msg = (
+            f"The file you uploaded had currencies different from {target_display}. "
+            f"We have converted the currencies to {target_display} and mapped the data."
+        ) if conversion_applied else None
+
         return {
             "job_id": job_id,
             "status": status,
@@ -117,8 +124,11 @@ class BusinessDataImporter:
             "currency_conversion": {
                 "source_currency": detected_source,
                 "target_currency": self.company_currency,
+                "source_display_name": source_display,
+                "target_display_name": target_display,
                 "exchange_rate": exchange_rate,
                 "converted": conversion_applied,
+                "notification_message": notif_msg,
             },
         }
 

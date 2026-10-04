@@ -2,26 +2,31 @@
 Currency Detection & Foreign Exchange (FX) Conversion Engine for BusinessPilot.
 Provides:
 1. Automatic detection of currency from uploaded spreadsheet column headers, cell formats, and values.
-2. Robust multi-currency conversion table supporting African and global trade currencies (TZS, USD, KES, UGX, RWF, EUR, GBP, ZAR, NGN, etc.).
+2. Direct online integration with live, real-time foreign exchange transfer rates (open.er-api / exchangerate-api / jsdelivr CDN) with offline fallback.
 3. Real-time conversion calculation between spreadsheet currency and company's registered base currency.
+4. Auto-notification generation informing users of currency conversion and mapping.
 """
 import re
 import os
+import ssl
+import time
+import json
+import urllib.request
 import pandas as pd
 from typing import Dict, Any, Optional, List, Tuple
 
 # Base reference exchange rates against USD (1 USD = X Currency units)
-# Updated realistic benchmark rates
+# Used as instant fallback when device is offline or without internet
 EXCHANGE_RATES_TO_USD: Dict[str, float] = {
     "USD": 1.0,           # US Dollar
-    "TZS": 2600.0,        # Tanzanian Shilling (~2,600 TZS per 1 USD)
-    "KES": 130.0,         # Kenyan Shilling (~130 KES per 1 USD)
-    "UGX": 3720.0,        # Ugandan Shilling (~3,720 UGX per 1 USD)
-    "RWF": 1350.0,        # Rwandan Franc (~1,350 RWF per 1 USD)
-    "BIF": 2900.0,        # Burundian Franc (~2,900 BIF per 1 USD)
-    "EUR": 0.92,          # Euro (1 EUR ≈ 1.087 USD => ~2,826 TZS)
-    "GBP": 0.78,          # British Pound (1 GBP ≈ 1.282 USD => ~3,333 TZS)
-    "ZAR": 18.0,          # South African Rand
+    "TZS": 2648.76,       # Tanzanian Shilling
+    "KES": 129.54,        # Kenyan Shilling
+    "UGX": 3720.0,        # Ugandan Shilling
+    "RWF": 1350.0,        # Rwandan Franc
+    "BIF": 2900.0,        # Burundian Franc
+    "EUR": 0.89,          # Euro
+    "GBP": 0.77,          # British Pound
+    "ZAR": 17.50,         # South African Rand
     "NGN": 1650.0,        # Nigerian Naira
     "GHS": 15.5,          # Ghanaian Cedi
     "CAD": 1.36,          # Canadian Dollar
@@ -118,6 +123,72 @@ CURRENCY_ALIASES: Dict[str, str] = {
     "FRANC": "CHF",
 }
 
+# Live Rates In-Memory Cache
+_LIVE_RATES_CACHE: Dict[str, float] = {}
+_CACHE_TIMESTAMP: float = 0.0
+_CACHE_TTL_SECONDS: float = 1800.0  # 30-minute caching to ensure high responsiveness
+
+
+def fetch_live_rates(force_refresh: bool = False) -> Tuple[Dict[str, float], bool]:
+    """
+    Directly fetches live, real-time market exchange rates from online APIs.
+    Returns (rates_dict, is_live_boolean).
+    If offline or network fails, gracefully returns the benchmark rates table.
+    """
+    global _LIVE_RATES_CACHE, _CACHE_TIMESTAMP
+
+    now = time.time()
+    if not force_refresh and _LIVE_RATES_CACHE and (now - _CACHE_TIMESTAMP < _CACHE_TTL_SECONDS):
+        return _LIVE_RATES_CACHE, True
+
+    ssl_ctx = ssl.create_default_context()
+    try:
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+    except Exception:
+        pass
+
+    online_sources = [
+        "https://open.er-api.com/v6/latest/USD",
+        "https://api.exchangerate-api.com/v4/latest/USD",
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+    ]
+
+    for url in online_sources:
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) BusinessPilot/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=4, context=ssl_ctx) as resp:
+                raw_data = json.loads(resp.read().decode("utf-8"))
+                rates: Dict[str, float] = {}
+
+                if "rates" in raw_data and isinstance(raw_data["rates"], dict):
+                    for k, v in raw_data["rates"].items():
+                        try:
+                            rates[k.upper()] = float(v)
+                        except (ValueError, TypeError):
+                            pass
+                elif "usd" in raw_data and isinstance(raw_data["usd"], dict):
+                    for k, v in raw_data["usd"].items():
+                        try:
+                            rates[k.upper()] = float(v)
+                        except (ValueError, TypeError):
+                            pass
+
+                if "TZS" in rates:
+                    merged = dict(EXCHANGE_RATES_TO_USD)
+                    merged.update(rates)
+                    _LIVE_RATES_CACHE = merged
+                    _CACHE_TIMESTAMP = now
+                    return _LIVE_RATES_CACHE, True
+        except Exception:
+            continue
+
+    # Fallback to local reference table if completely disconnected
+    return EXCHANGE_RATES_TO_USD, False
+
 
 def normalize_currency_code(raw: Optional[str]) -> str:
     """Normalizes any currency string, abbreviation, or symbol into standard ISO-4217 code."""
@@ -148,13 +219,43 @@ def normalize_currency_code(raw: Optional[str]) -> str:
     return cleaned if cleaned in EXCHANGE_RATES_TO_USD else "USD"
 
 
-def get_exchange_rate(from_curr: str, to_curr: str) -> float:
+def get_currency_display_name(curr_code: Optional[str]) -> str:
     """
-    Calculates conversion rate from from_curr to to_curr.
+    Returns user-friendly currency display name (e.g. 'TZS Shillings', 'KES Shillings', 'USD Dollars').
+    Matches the user's explicit requested phrasing.
+    """
+    code = normalize_currency_code(curr_code)
+    names = {
+        "TZS": "TZS Shillings",
+        "KES": "KES Shillings",
+        "UGX": "UGX Shillings",
+        "USD": "USD Dollars",
+        "EUR": "Euros (EUR)",
+        "GBP": "British Pounds (GBP)",
+        "RWF": "RWF Francs",
+        "BIF": "BIF Francs",
+        "ZAR": "ZAR Rand",
+        "NGN": "NGN Naira",
+        "GHS": "GHS Cedi",
+        "CAD": "Canadian Dollars (CAD)",
+        "AUD": "Australian Dollars (AUD)",
+        "INR": "Indian Rupees (INR)",
+        "AED": "UAE Dirhams (AED)",
+        "SAR": "Saudi Riyals (SAR)",
+        "JPY": "Japanese Yen (JPY)",
+        "CNY": "Chinese Yuan (CNY)",
+        "CHF": "Swiss Francs (CHF)",
+    }
+    return names.get(code, f"{code} Shillings" if code in ["TZS", "KES", "UGX"] else f"{code} Currency")
+
+
+def get_exchange_rate(from_curr: str, to_curr: str, live: bool = True) -> float:
+    """
+    Calculates conversion rate from from_curr to to_curr using live online rates.
     Example:
-        from USD to TZS: 2600.0 / 1.0 = 2600.0
-        from TZS to USD: 1.0 / 2600.0 ≈ 0.0003846
-        from EUR to TZS: 2600.0 / 0.92 ≈ 2826.087
+        from USD to TZS (live ~2648.76 TZS): 2648.76 / 1.0 = 2648.76
+        from TZS to USD: 1.0 / 2648.76 ≈ 0.0003775
+        from EUR to TZS: 2648.76 / 0.89 ≈ 2976.13
     """
     f_code = normalize_currency_code(from_curr)
     t_code = normalize_currency_code(to_curr)
@@ -162,20 +263,21 @@ def get_exchange_rate(from_curr: str, to_curr: str) -> float:
     if f_code == t_code:
         return 1.0
 
-    f_usd_rate = EXCHANGE_RATES_TO_USD.get(f_code, 1.0)
-    t_usd_rate = EXCHANGE_RATES_TO_USD.get(t_code, 1.0)
+    rates, is_live = fetch_live_rates() if live else (EXCHANGE_RATES_TO_USD, False)
 
-    # 1 from_unit = (1 / f_usd_rate) USD = (t_usd_rate / f_usd_rate) to_units
+    f_usd_rate = rates.get(f_code, EXCHANGE_RATES_TO_USD.get(f_code, 1.0))
+    t_usd_rate = rates.get(t_code, EXCHANGE_RATES_TO_USD.get(t_code, 1.0))
+
     rate = t_usd_rate / f_usd_rate
     return round(rate, 6)
 
 
 def convert_amount(amount: float, from_curr: str, to_curr: str, rate: Optional[float] = None) -> float:
-    """Converts a monetary amount using specified or looked-up FX exchange rate."""
+    """Converts a monetary amount using specified or looked-up live FX exchange rate."""
     if amount == 0.0:
         return 0.0
     if rate is None:
-        rate = get_exchange_rate(from_curr, to_curr)
+        rate = get_exchange_rate(from_curr, to_curr, live=True)
     return round(float(amount) * rate, 2)
 
 
@@ -253,7 +355,6 @@ class CurrencyDetector:
         sample_df = df.head(sample_size)
 
         for col in sample_df.columns:
-            # Check string or object columns
             series = sample_df[col].dropna()
             for val in series:
                 val_str = str(val).strip()
@@ -288,21 +389,27 @@ class CurrencyDetector:
         }
 
     @classmethod
-    def detect_workbook_currency(cls, file_path: str, default_currency: str = "TZS") -> Dict[str, Any]:
+    def detect_workbook_currency(cls, file_path: str, default_currency: str = "TZS", live_rates: bool = True) -> Dict[str, Any]:
         """
         Inspects an entire Excel workbook or CSV file across all sheets,
-        detecting the source currency and comparing against default_currency.
+        detecting the source currency, querying live online exchange rates,
+        and generating user notification messages.
         """
         if not os.path.exists(file_path):
+            target_display = get_currency_display_name(default_currency)
             return {
                 "source_currency": default_currency,
                 "target_currency": default_currency,
+                "target_display_name": target_display,
                 "conversion_needed": False,
                 "exchange_rate": 1.0,
+                "is_live_rate": False,
+                "rate_source": "Default",
                 "confidence": 0.0,
                 "evidence": "File not found.",
                 "rate_label": f"1 {default_currency} = 1.0 {default_currency}",
-                "message": f"Currency matches business currency ({default_currency}).",
+                "notification_message": None,
+                "message": f"Currency matches business currency ({target_display}).",
             }
 
         ext = os.path.splitext(file_path)[1].lower()
@@ -343,6 +450,7 @@ class CurrencyDetector:
             all_evidence.append(f"Inspection notice: {str(e)}")
 
         target_curr = normalize_currency_code(default_currency)
+        target_display = get_currency_display_name(target_curr)
 
         if sheets_votes:
             sorted_votes = sorted(sheets_votes.items(), key=lambda x: x[1], reverse=True)
@@ -354,30 +462,52 @@ class CurrencyDetector:
             confidence = 0.50
 
         conversion_needed = (source_curr != target_curr)
-        rate = get_exchange_rate(source_curr, target_curr) if conversion_needed else 1.0
+        source_display = get_currency_display_name(source_curr)
+
+        # Query live rates
+        rate = 1.0
+        is_live = False
+        rate_source = "Same Currency"
+        if conversion_needed:
+            rates_map, is_live = fetch_live_rates() if live_rates else (EXCHANGE_RATES_TO_USD, False)
+            f_rate = rates_map.get(source_curr, EXCHANGE_RATES_TO_USD.get(source_curr, 1.0))
+            t_rate = rates_map.get(target_curr, EXCHANGE_RATES_TO_USD.get(target_curr, 1.0))
+            rate = round(t_rate / f_rate, 6)
+            rate_source = "Live Online Transfer Rate" if is_live else "Market Benchmark Reference"
 
         if rate >= 1.0:
             rate_label = f"1 {source_curr} ≈ {rate:,.2f} {target_curr}"
         else:
             rate_label = f"1 {source_curr} ≈ {rate:.6f} {target_curr}"
 
+        # Standard Notification Message as explicitly requested by user:
+        # "The file you uploaded had currencies different from [XX]. We have converted the currencies to [XX] and mapped the data."
         if conversion_needed:
+            notification_message = (
+                f"The file you uploaded had currencies different from {target_display}. "
+                f"We have converted the currencies to {target_display} and mapped the data."
+            )
             msg = (
-                f"Auto-Conversion Active: Spreadsheet currency detected as {source_curr}."
-                f" Values will automatically be converted to your business currency ({target_curr})"
-                f" at {rate_label}."
+                f"Auto-Conversion Active: The file you uploaded had currencies different from {target_display} "
+                f"(detected {source_display}). We have converted the currencies to {target_display} at {rate_label} ({rate_source}) and mapped the data."
             )
         else:
-            msg = f"Spreadsheet currency matches your business currency ({target_curr}). No conversion needed."
+            notification_message = None
+            msg = f"Spreadsheet currency matches your business currency ({target_display}). No conversion needed."
 
         return {
             "source_currency": source_curr,
             "target_currency": target_curr,
+            "source_display_name": source_display,
+            "target_display_name": target_display,
             "conversion_needed": conversion_needed,
             "exchange_rate": rate,
+            "is_live_rate": is_live,
+            "rate_source": rate_source,
             "rate_label": rate_label,
             "confidence": confidence,
             "evidence": "; ".join(all_evidence[:3]) if all_evidence else "Standard business format",
+            "notification_message": notification_message,
             "message": msg,
             "sheets_detail": sheets_detail,
         }
