@@ -856,16 +856,35 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 upload_dir = get_upload_dir()
                 save_path = os.path.join(upload_dir, f"google_sheet_{sheet_id[:8]}.xlsx")
 
-                # Try direct download
+                # Try direct download with SSL context & generous timeout
                 try:
+                    import ssl
+                    ssl_ctx = ssl.create_default_context()
+                    try:
+                        ssl_ctx.check_hostname = False
+                        ssl_ctx.verify_mode = ssl.CERT_NONE
+                    except Exception:
+                        pass
+
                     req = urllib.request.Request(
                         export_url,
-                        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+                        headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
                     )
-                    with urllib.request.urlopen(req, timeout=8) as resp:
+                    with urllib.request.urlopen(req, timeout=25, context=ssl_ctx) as resp:
                         content = resp.read()
-                        with open(save_path, "wb") as f:
-                            f.write(content)
+
+                    # Verify if response is actual spreadsheet data or Google account auth redirect
+                    if content.startswith(b"<!DOCTYPE html") or b"<html" in content[:300].lower():
+                        if b"accounts.google.com" in content or b"ServiceLogin" in content or b"Sign in" in content:
+                            self._send_json({
+                                "success": False,
+                                "error": "This Google Sheet is private or requires sign-in. To allow Business Pilot to import it: in Google Sheets, click 'Share' (top right), set General Access to 'Anyone with the link can view', and try again. Alternatively, click File > Download > Microsoft Excel (.xlsx) and drop the file into the upload zone above!",
+                            }, status=400)
+                            return
+
+                    with open(save_path, "wb") as f:
+                        f.write(content)
+
                 except Exception as net_err:
                     self._send_json({
                         "success": False,
