@@ -14,6 +14,7 @@ from database.db import get_connection, generate_uuid, execute_write
 from engine.ingestion import SpreadsheetReader, StagingManager
 from engine.mapping import SchemaMapper
 from engine.quality import DataQualityAuditor
+from engine.currency import CurrencyDetector, get_exchange_rate
 
 
 class BusinessDataImporter:
@@ -21,11 +22,39 @@ class BusinessDataImporter:
 
     def __init__(self, company_id: str):
         self.company_id = company_id
+        # Determine company's base currency from database
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT currency FROM companies WHERE id = ?;", (company_id,))
+            row = cursor.fetchone()
+            self.company_currency = row[0] if row and row[0] else "TZS"
 
-    def import_excel_workbook(self, file_path: str) -> Dict[str, Any]:
-        """Imports an entire multi-tab Excel workbook or single CSV."""
+    def import_excel_workbook(
+        self,
+        file_path: str,
+        exchange_rate: Optional[float] = None,
+        source_currency: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Imports an entire multi-tab Excel workbook or single CSV with optional auto-currency conversion."""
         inspection = SpreadsheetReader.inspect_file(file_path)
         source_id, job_id = StagingManager.create_import_job(self.company_id, file_path)
+
+        # Detect source currency if not explicitly provided
+        currency_info = CurrencyDetector.detect_workbook_currency(file_path, default_currency=self.company_currency)
+        detected_source = source_currency or currency_info.get("source_currency") or self.company_currency
+
+        if exchange_rate is None:
+            if detected_source != self.company_currency:
+                exchange_rate = get_exchange_rate(detected_source, self.company_currency)
+            else:
+                exchange_rate = 1.0
+        else:
+            try:
+                exchange_rate = float(exchange_rate)
+            except (ValueError, TypeError):
+                exchange_rate = 1.0
+
+        conversion_applied = (exchange_rate != 1.0)
 
         sheets_results = {}
         total_rows_imported = 0
@@ -50,8 +79,10 @@ class BusinessDataImporter:
             # Save confirmed mappings
             SchemaMapper.save_confirmed_mappings(source_id, mapping_result["mappings"])
 
-            # Commit clean records into core database tables
-            committed_count = self._commit_clean_records(entity_type, audit_result["clean_records"])
+            # Commit clean records into core database tables with FX rate conversion
+            committed_count = self._commit_clean_records(
+                entity_type, audit_result["clean_records"], exchange_rate=exchange_rate
+            )
             total_rows_imported += committed_count
             total_rows_failed += len(audit_result["error_records"])
 
@@ -83,10 +114,16 @@ class BusinessDataImporter:
             "total_rows_imported": total_rows_imported,
             "total_rows_failed": total_rows_failed,
             "sheets": sheets_results,
+            "currency_conversion": {
+                "source_currency": detected_source,
+                "target_currency": self.company_currency,
+                "exchange_rate": exchange_rate,
+                "converted": conversion_applied,
+            },
         }
 
-    def _commit_clean_records(self, entity_type: str, records: list) -> int:
-        """Inserts audited clean records into multi-tenant tables."""
+    def _commit_clean_records(self, entity_type: str, records: list, exchange_rate: float = 1.0) -> int:
+        """Inserts audited clean records into multi-tenant tables, converting monetary values by exchange_rate."""
         if not records:
             return 0
 
@@ -117,6 +154,19 @@ class BusinessDataImporter:
                             (customer_id, self.company_id, cust_name),
                         )
 
+                    # Monetary conversions via exchange_rate
+                    raw_unit_price = float(rec.get("unit_price", 0.0))
+                    raw_cost_price = float(rec.get("cost_price", 0.0))
+                    raw_total = float(rec.get("total", 0.0))
+                    raw_cogs = float(rec.get("cost_of_goods", 0.0))
+                    raw_profit = float(rec.get("profit", 0.0))
+
+                    unit_price = round(raw_unit_price * exchange_rate, 2)
+                    cost_price = round(raw_cost_price * exchange_rate, 2)
+                    total = round(raw_total * exchange_rate, 2)
+                    cost_of_goods = round(raw_cogs * exchange_rate, 2)
+                    profit = round(raw_profit * exchange_rate, 2)
+
                     # Find or create product
                     prod_name = rec.get("product_name", "General Item")
                     cursor.execute(
@@ -134,7 +184,7 @@ class BusinessDataImporter:
                             INSERT OR IGNORE INTO products (id, company_id, sku, name, selling_price, cost_price)
                             VALUES (?, ?, ?, ?, ?, ?);
                             """,
-                            (product_id, self.company_id, sku, prod_name, rec.get("unit_price", 0.0), rec.get("cost_price", 0.0)),
+                            (product_id, self.company_id, sku, prod_name, unit_price, cost_price),
                         )
                         cursor.execute("SELECT id FROM products WHERE company_id = ? AND (name = ? OR sku = ?)", (self.company_id, prod_name, sku))
                         r = cursor.fetchone()
@@ -155,10 +205,10 @@ class BusinessDataImporter:
                             customer_id,
                             rec.get("invoice_number", f"INV-{sale_id[:8]}"),
                             rec.get("sale_date"),
-                            rec.get("total", 0.0),
-                            rec.get("total", 0.0),
-                            rec.get("cost_of_goods", 0.0),
-                            rec.get("profit", 0.0),
+                            total,
+                            total,
+                            cost_of_goods,
+                            profit,
                             rec.get("payment_status", "Paid"),
                         ),
                     )
@@ -175,10 +225,10 @@ class BusinessDataImporter:
                             sale_id,
                             product_id,
                             rec.get("quantity", 1.0),
-                            rec.get("unit_price", 0.0),
-                            rec.get("total", 0.0),
-                            rec.get("cost_price", 0.0),
-                            rec.get("profit", 0.0),
+                            unit_price,
+                            total,
+                            cost_price,
+                            profit,
                         ),
                     )
 
@@ -195,7 +245,7 @@ class BusinessDataImporter:
                             self.company_id,
                             product_id,
                             -abs(rec.get("quantity", 1.0)),
-                            rec.get("cost_price", 0.0),
+                            cost_price,
                             sale_id,
                             rec.get("sale_date"),
                         ),
@@ -215,7 +265,7 @@ class BusinessDataImporter:
                                 self.company_id,
                                 sale_id,
                                 customer_id,
-                                rec.get("total", 0.0),
+                                total,
                                 rec.get("payment_method", "Cash"),
                                 rec.get("sale_date"),
                             ),
@@ -254,7 +304,8 @@ class BusinessDataImporter:
                         existing_cats[norm_name] = (cat_id, norm_name, cat_type)
 
                     desc = str(rec.get("description", "")).strip() or norm_name
-                    amount = float(rec.get("amount", 0.0))
+                    raw_amount = float(rec.get("amount", 0.0))
+                    amount = round(raw_amount * exchange_rate, 2)
 
                     conn.execute(
                         """
@@ -277,10 +328,10 @@ class BusinessDataImporter:
                 for rec in records:
                     sku = rec.get("sku")
                     name = rec.get("product_name")
-                    cost = rec.get("unit_cost", 0.0)
-                    price = rec.get("selling_price", 0.0)
-                    qty = rec.get("stock_quantity", 0.0)
-                    reorder = rec.get("reorder_level", 10.0)
+                    cost = round(float(rec.get("unit_cost", 0.0)) * exchange_rate, 2)
+                    price = round(float(rec.get("selling_price", 0.0)) * exchange_rate, 2)
+                    qty = float(rec.get("stock_quantity", 0.0))
+                    reorder = float(rec.get("reorder_level", 10.0))
 
                     cursor = conn.cursor()
                     cursor.execute("SELECT id FROM products WHERE company_id = ? AND sku = ?", (self.company_id, sku))
@@ -312,6 +363,9 @@ class BusinessDataImporter:
             elif entity_type == "customers":
                 for rec in records:
                     cust_id = generate_uuid()
+                    credit_limit = round(float(rec.get("credit_limit", 0.0)) * exchange_rate, 2)
+                    payment_terms = int(rec.get("payment_terms", 0))
+
                     conn.execute(
                         """
                         INSERT OR REPLACE INTO customers (
@@ -325,8 +379,8 @@ class BusinessDataImporter:
                             rec.get("customer_name"),
                             rec.get("phone", ""),
                             rec.get("customer_type", "Retail"),
-                            rec.get("credit_limit", 0.0),
-                            rec.get("payment_terms", 0),
+                            credit_limit,
+                            payment_terms,
                         ),
                     )
                     committed += 1

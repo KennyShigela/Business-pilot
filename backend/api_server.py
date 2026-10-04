@@ -30,6 +30,7 @@ from engine.forecasting import ForecastingEngine
 from engine.alerts_engine import EarlyWarningAlertEngine
 from engine.reports import ManagementReportGenerator
 from engine.ai_analyst import AIBusinessAnalyst
+from engine.currency import CurrencyDetector, get_exchange_rate, convert_amount
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 
@@ -705,11 +706,17 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                     mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
                     mapped_sheets[sheet] = mapping_res
 
+                # Detect currency and compare with company registered base currency
+                comp = query_one("SELECT currency, name FROM companies WHERE id = ?;", (company_id,))
+                target_currency = comp["currency"] if comp and comp.get("currency") else "TZS"
+                conversion_info = CurrencyDetector.detect_workbook_currency(save_path, default_currency=target_currency)
+
                 self._send_json({
                     "success": True,
                     "file_path": save_path,
                     "inspection": inspection,
                     "mappings": mapped_sheets,
+                    "currency_conversion": conversion_info,
                 })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)}, status=400)
@@ -737,11 +744,16 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                     mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
                     mapped_sheets[sheet] = mapping_res
 
+                comp = query_one("SELECT currency, name FROM companies WHERE id = ?;", (company_id,))
+                target_currency = comp["currency"] if comp and comp.get("currency") else "TZS"
+                conversion_info = CurrencyDetector.detect_workbook_currency(target_path, default_currency=target_currency)
+
                 self._send_json({
                     "success": True,
                     "file_path": target_path,
                     "inspection": inspection,
                     "mappings": mapped_sheets,
+                    "currency_conversion": conversion_info,
                 })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)}, status=400)
@@ -900,11 +912,17 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                     mapping_res = SchemaMapper.map_columns(list(df.columns), sheet_name=sheet)
                     mapped_sheets[sheet] = mapping_res
 
+                # Detect currency and compare with company registered base currency
+                comp = query_one("SELECT currency, name FROM companies WHERE id = ?;", (company_id,))
+                target_currency = comp["currency"] if comp and comp.get("currency") else "TZS"
+                conversion_info = CurrencyDetector.detect_workbook_currency(save_path, default_currency=target_currency)
+
                 self._send_json({
                     "success": True,
                     "file_path": save_path,
                     "inspection": inspection,
                     "mappings": mapped_sheets,
+                    "currency_conversion": conversion_info,
                 })
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)}, status=400)
@@ -915,9 +933,17 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 data = json.loads(body.decode("utf-8"))
                 file_path = data.get("file_path")
                 company_id = data.get("company_id", "company-abc-supermarket-001")
+                exchange_rate = data.get("exchange_rate")
+                source_currency = data.get("source_currency")
+
+                if exchange_rate is not None:
+                    try:
+                        exchange_rate = float(exchange_rate)
+                    except (ValueError, TypeError):
+                        exchange_rate = None
 
                 importer = BusinessDataImporter(company_id)
-                res = importer.import_excel_workbook(file_path)
+                res = importer.import_excel_workbook(file_path, exchange_rate=exchange_rate, source_currency=source_currency)
 
                 # Proactively refresh alerts based on the newly imported data
                 try:

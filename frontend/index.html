@@ -788,6 +788,29 @@
               Ready to import.
             </div>
 
+            <!-- Currency Detection & Auto-Conversion Banner -->
+            <div id="currency-conversion-banner" style="display:none; margin-bottom:1.25rem; padding:0.9rem 1.1rem; border-radius:8px; border:1px solid #bfdbfe; background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);">
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+                <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                  <div style="font-size:1.5rem; line-height:1; flex-shrink:0;" id="currency-conversion-icon">💱</div>
+                  <div>
+                    <div style="font-size:0.92rem; font-weight:700; color:#1e3a8a; display:flex; align-items:center; gap:0.5rem;" id="currency-conversion-title">
+                      Auto-Converting Currency
+                      <span id="currency-conversion-badge" class="badge-status badge-healthy" style="font-size:0.72rem; padding:2px 8px;">USD ➔ TZS</span>
+                    </div>
+                    <div style="font-size:0.82rem; color:#334155; margin-top:2px;" id="currency-conversion-desc">
+                      Monetary values detected in spreadsheet will automatically convert into your registered business currency.
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:0.35rem 0.65rem;" id="currency-rate-input-container">
+                  <label for="currency-exchange-rate-input" style="font-size:0.78rem; font-weight:600; color:#475569; margin:0;" id="currency-rate-label">Rate (1 USD =):</label>
+                  <input type="number" id="currency-exchange-rate-input" step="any" style="width:110px; padding:0.25rem 0.4rem; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem; font-weight:700; color:#0f172a; text-align:right;" title="Edit conversion rate if needed" />
+                  <span style="font-size:0.78rem; font-weight:700; color:#2563eb;" id="currency-rate-unit">TZS</span>
+                </div>
+              </div>
+            </div>
+
             <div class="data-table-container">
               <table class="data-table" id="mapping-table">
                 <thead>
@@ -806,7 +829,7 @@
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
-              <button class="btn-secondary" onclick="document.getElementById('mapping-card').style.display='none'">Cancel</button>
+              <button class="btn-secondary" onclick="document.getElementById('mapping-card').style.display='none'; const b=document.getElementById('currency-conversion-banner'); if(b) b.style.display='none';">Cancel</button>
               <button class="btn-primary" id="btn-confirm-import">Accept & Import Data</button>
             </div>
           </div>

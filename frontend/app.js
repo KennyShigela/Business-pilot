@@ -2117,10 +2117,59 @@ function handleFileUpload(file) {
   reader.readAsDataURL(file);
 }
 
+let currentUploadCurrencyInfo = null;
+
 function renderMappingReview(uploadResult) {
   const mappingCard = document.getElementById("mapping-card");
   const tbody = document.getElementById("mapping-table-body");
   mappingCard.style.display = "block";
+
+  currentUploadCurrencyInfo = uploadResult.currency_conversion || null;
+  const banner = document.getElementById("currency-conversion-banner");
+  if (banner && currentUploadCurrencyInfo) {
+    banner.style.display = "block";
+    const titleEl = document.getElementById("currency-conversion-title");
+    const descEl = document.getElementById("currency-conversion-desc");
+    const iconEl = document.getElementById("currency-conversion-icon");
+    const inputContainer = document.getElementById("currency-rate-input-container");
+    const rateInput = document.getElementById("currency-exchange-rate-input");
+    const rateLabel = document.getElementById("currency-rate-label");
+    const rateUnit = document.getElementById("currency-rate-unit");
+
+    const src = currentUploadCurrencyInfo.source_currency || "USD";
+    const tgt = currentUploadCurrencyInfo.target_currency || currentCurrency || "TZS";
+    const rate = currentUploadCurrencyInfo.exchange_rate || 1.0;
+
+    if (currentUploadCurrencyInfo.conversion_needed) {
+      banner.style.background = "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)";
+      banner.style.borderColor = "#93c5fd";
+      if (iconEl) iconEl.innerText = "💱";
+      if (titleEl) {
+        titleEl.innerHTML = `Auto-Converting Currency <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${src} ➔ ${tgt}</span>`;
+      }
+      const exampleAmount = (100 * rate).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      if (descEl) {
+        descEl.innerHTML = `Spreadsheet figures detected in <strong>${src}</strong> will automatically convert to your business currency (<strong>${tgt}</strong>). (e.g. 100 ${src} ≈ ${exampleAmount} ${tgt}).`;
+      }
+      if (inputContainer) inputContainer.style.display = "flex";
+      if (rateLabel) rateLabel.innerText = `Rate (1 ${src} =):`;
+      if (rateUnit) rateUnit.innerText = tgt;
+      if (rateInput) rateInput.value = rate;
+    } else {
+      banner.style.background = "#f0fdf4";
+      banner.style.borderColor = "#86efac";
+      if (iconEl) iconEl.innerText = "✓";
+      if (titleEl) {
+        titleEl.innerHTML = `Currency Matched <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${tgt} (100% Match)</span>`;
+      }
+      if (descEl) {
+        descEl.innerHTML = `Spreadsheet amounts match your business currency (<strong>${tgt}</strong>). No conversion needed.`;
+      }
+      if (inputContainer) inputContainer.style.display = "none";
+    }
+  } else if (banner) {
+    banner.style.display = "none";
+  }
 
   const mappings = uploadResult.mappings || {};
   let rowsHtml = "";
@@ -2159,21 +2208,44 @@ async function confirmImport() {
     pText.innerText = "Calculating deterministic metrics...";
 
     try {
+      const rateInput = document.getElementById("currency-exchange-rate-input");
+      let customRate = null;
+      if (rateInput && rateInput.value && currentUploadCurrencyInfo && currentUploadCurrencyInfo.conversion_needed) {
+        const parsed = parseFloat(rateInput.value);
+        if (!isNaN(parsed) && parsed > 0) {
+          customRate = parsed;
+        }
+      }
+
+      const payload = {
+        file_path: activeUploadedFilePath,
+        company_id: currentCompanyId,
+      };
+      if (customRate !== null) {
+        payload.exchange_rate = customRate;
+      }
+      if (currentUploadCurrencyInfo && currentUploadCurrencyInfo.source_currency) {
+        payload.source_currency = currentUploadCurrencyInfo.source_currency;
+      }
+
       const res = await fetch(`${API_BASE}/api/confirm-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file_path: activeUploadedFilePath,
-          company_id: currentCompanyId,
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
 
       pBar.style.width = "100%";
-      pText.innerText = `Import Complete! ${result.result.total_rows_imported} rows imported.`;
+      const convNotice = result.result && result.result.currency_conversion && result.result.currency_conversion.converted
+        ? ` (Auto-converted from ${result.result.currency_conversion.source_currency} to ${result.result.currency_conversion.target_currency})`
+        : "";
+      pText.innerText = `Import Complete! ${result.result.total_rows_imported} rows imported.${convNotice}`;
 
       setTimeout(() => {
         document.getElementById("mapping-card").style.display = "none";
+        const banner = document.getElementById("currency-conversion-banner");
+        if (banner) banner.style.display = "none";
+        currentUploadCurrencyInfo = null;
         loadDataSourcesList();
         switchView("dashboard");
         loadAllDashboardData();
