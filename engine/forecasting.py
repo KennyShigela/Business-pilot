@@ -12,12 +12,14 @@ from typing import Dict, List, Any, Tuple, Optional
 from database.db import query_all, get_connection, generate_uuid
 
 
+# The class below is for computing statistical time-series forecasts with confidence intervals
 class ForecastingEngine:
     """Computes time-series forecasts with confidence intervals."""
 
     def __init__(self, company_id: str):
         self.company_id = company_id
 
+    # The function below is for fetching historical monthly revenue chronological records
     def get_historical_monthly_revenue(self) -> List[Dict[str, Any]]:
         """Fetches historical monthly revenue ordered chronologically."""
         sql = """
@@ -32,6 +34,7 @@ class ForecastingEngine:
         """
         return query_all(sql, (self.company_id,))
 
+    # The function below is for generating future revenue forecasts using exponential smoothing and linear regression
     def generate_revenue_forecast(self, horizon_months: int = 3) -> Dict[str, Any]:
         """
         Generates monthly revenue forecast with 80% confidence interval bands
@@ -148,6 +151,7 @@ class ForecastingEngine:
             "drivers": drivers,
         }
 
+    # The function below is for calculating stockout forecasts and depleted inventory risk dates
     def generate_inventory_stockout_forecast(self) -> List[Dict[str, Any]]:
         """
         Calculates daily sales velocity (burn rate) per SKU

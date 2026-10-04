@@ -17,7 +17,7 @@ try:
 except Exception as e:
     print(f"Database init skipped: {e}")
 
-# Exact WSGI callable signature required by Vercel: callable(environ, start_response)
+# The function below is for providing the WSGI entrypoint required by cloud hosting and Vercel
 def app(environ, start_response):
     return DualHandler._handle_wsgi(environ, start_response)
 
@@ -26,6 +26,7 @@ application = app
 handler = BusinessPilotAPIHandler
 asgi_app = handle_asgi
 
+# This piece of code below deals with starting the local HTTP development server
 if __name__ == "__main__":
     from http.server import HTTPServer
     port = int(os.environ.get("PORT", 8080))

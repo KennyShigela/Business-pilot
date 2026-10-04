@@ -28,6 +28,7 @@ from engine.forecasting import ForecastingEngine
 from engine.alerts_engine import EarlyWarningAlertEngine
 
 
+# The class below is for producing executive PDF board packs and HTML management briefings
 class ManagementReportGenerator:
     """Produces executive PDF board packs and HTML management briefings."""
 
@@ -37,6 +38,7 @@ class ManagementReportGenerator:
         self.forecasting = ForecastingEngine(company_id)
         self.alerts_engine = EarlyWarningAlertEngine(company_id)
 
+    # The function below is for building a multi-page executive PDF board pack report
     def generate_pdf_report(self) -> bytes:
         """Builds a formatted multi-page executive PDF report and returns raw bytes."""
         buffer = io.BytesIO()
@@ -232,6 +234,7 @@ class ManagementReportGenerator:
         doc.build(elements)
         return buffer.getvalue()
 
+    # The function below is for building a print-ready HTML management briefing report
     def generate_html_report(self) -> str:
         """Builds print-ready HTML management briefing."""
         company = query_one("SELECT * FROM companies WHERE id = ?;", (self.company_id,)) or {

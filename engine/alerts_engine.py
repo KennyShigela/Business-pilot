@@ -9,6 +9,7 @@ from engine.analytics import BusinessAnalyticsEngine
 from engine.forecasting import ForecastingEngine
 
 
+# The class below is for proactively evaluating risk triggers and maintaining active business alerts
 class EarlyWarningAlertEngine:
     """Proactively evaluates risk triggers and populates the alerts table."""
 
@@ -17,6 +18,7 @@ class EarlyWarningAlertEngine:
         self.analytics = BusinessAnalyticsEngine(company_id)
         self.forecasting = ForecastingEngine(company_id)
 
+    # The function below is for auditing business health across Cash, Inventory, Expenses, and Margins
     def evaluate_and_refresh_alerts(self) -> List[Dict[str, Any]]:
         """
         Runs comprehensive risk detection across Cash, Inventory, Expenses, and Margins,
@@ -130,6 +132,7 @@ class EarlyWarningAlertEngine:
 
         return active_alerts
 
+    # The function below is for fetching persisted active alerts filtered by severity
     def get_active_alerts(self, severity: str = "ALL") -> List[Dict[str, Any]]:
         """Returns persisted active alerts, optionally filtered by severity."""
         sev_filter = ""

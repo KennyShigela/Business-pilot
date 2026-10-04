@@ -17,18 +17,19 @@ from engine.quality import DataQualityAuditor
 from engine.currency import CurrencyDetector, get_exchange_rate, get_currency_display_name
 
 
+# The class below is for orchestrating the end-to-end import pipeline from spreadsheet to ledger
 class BusinessDataImporter:
     """Orchestrates end-to-end import from file to verified database records."""
 
     def __init__(self, company_id: str):
         self.company_id = company_id
-        # Determine company's base currency from database
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT currency FROM companies WHERE id = ?;", (company_id,))
             row = cursor.fetchone()
             self.company_currency = row[0] if row and row[0] else "TZS"
 
+    # The function below is for importing an entire spreadsheet workbook and applying currency conversion
     def import_excel_workbook(
         self,
         file_path: str,
@@ -132,6 +133,7 @@ class BusinessDataImporter:
             },
         }
 
+    # The function below is for committing validated and cleaned records into database tables with currency conversion
     def _commit_clean_records(self, entity_type: str, records: list, exchange_rate: float = 1.0) -> int:
         """Inserts audited clean records into multi-tenant tables, converting monetary values by exchange_rate."""
         if not records:

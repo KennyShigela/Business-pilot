@@ -6,13 +6,13 @@ Business Pilot turns raw business spreadsheets (Excel, Google Sheets, CSV) conta
 
 ---
 
-## 🌟 Key Capabilities
+## Key Capabilities
 
-### 1. Universal Ingestion & Self-Healing Pipeline
-- **Zero-Config Import**: Drag-and-drop `.xlsx`, `.xls`, `.csv` files or paste a public Google Sheets share link.
-- **Automated Entity Classification**: Automatically categorizes sheets and columns into Sales, Operating Expenses, Inventory Stock, and Customer Accounts.
-- **Fuzzy Header Normalization**: Matches varied column naming conventions (`Selling Price` $\rightarrow$ `unit_price`, `Client` $\rightarrow$ `customer_name`, `Qty Sold` $\rightarrow$ `quantity`).
-- **Data Quality Gatekeeper**: Detects anomalies, cleans multi-currency formats, standardizes dates, flags duplicate transactions, and computes a **Data Trustworthiness Score**.
+### 1. Instant Spreadsheet Import & Smart Data Cleaning
+- **Zero-Config Import**: Drag-and-drop your Excel (`.xlsx`, `.xls`) or CSV files, or paste a public Google Sheets share link.
+- **Smart Automatic Categorization**: Automatically detects and categorizes your sheets into Sales, Operating Expenses, Inventory Stock, and Customer Accounts.
+- **Automatic Column Matching**: Connects varied spreadsheet headers (`Selling Price` $\rightarrow$ `unit_price`, `Client` $\rightarrow$ `customer_name`, `Qty Sold` $\rightarrow$ `quantity`) without manual setup.
+- **Live Currency Conversion & Quality Check**: Automatically detects spreadsheet currencies, converts to your business currency using live online rates, cleans values, and flags duplicate transactions.
 
 ### 2. Executive Financial Analytics & P&L
 - **Revenue & Gross Profitability**: Tracks sales velocity, COGS, gross margin %, average order value (AOV), and month-over-month growth.
@@ -45,7 +45,7 @@ Business Pilot turns raw business spreadsheets (Excel, Google Sheets, CSV) conta
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Architecture & Tech Stack
 
 | Layer | Technology |
 | :--- | :--- |
@@ -59,7 +59,7 @@ Business Pilot turns raw business spreadsheets (Excel, Google Sheets, CSV) conta
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## Quick Start (Local Development)
 
 ### Prerequisites
 - Python 3.10+
@@ -80,7 +80,7 @@ Open your browser to: **`http://localhost:8080`**
 
 ---
 
-## ☁️ Deployment to Vercel
+## Deployment to Vercel
 
 Business Pilot is pre-configured with `vercel.json` and a serverless entrypoint in `api/index.py`:
 
@@ -96,5 +96,5 @@ Or connect the GitHub repository directly in your **Vercel Dashboard** for autom
 
 ---
 
-## 📄 License
+## License
 MIT License. Open-source for business owners, developers, and operators.

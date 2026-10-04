@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from database.db import query_all, query_one, get_connection
 
 
+# The class below is for calculating deterministic business analytics and financial KPIs
 class BusinessAnalyticsEngine:
     """Calculates all executive and operational business metrics for a company."""
 
@@ -18,6 +19,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 1. REVENUE METRICS
     # ---------------------------------------------------------
+    # The function below is for calculating total revenue, order count, AOV, and MoM growth
     def get_revenue_summary(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
         """Calculates total revenue, order count, AOV, and MoM growth."""
         date_filter = ""
@@ -76,6 +78,7 @@ class BusinessAnalyticsEngine:
             "mom_growth_pct": mom_growth,
         }
 
+    # The function below is for returning monthly revenue and gross profit series for trend charts
     def get_revenue_trends(self) -> List[Dict[str, Any]]:
         """Returns monthly revenue and gross profit series for trend charts."""
         sql = """
@@ -95,6 +98,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 2. EXPENSES & COST METRICS
     # ---------------------------------------------------------
+    # The function below is for calculating total expenses, category breakdown, and MoM trend
     def get_expense_summary(self) -> Dict[str, Any]:
         """Calculates total expenses, category breakdown, and MoM trend."""
         sql_total = """
@@ -150,6 +154,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 3. PROFITABILITY & P&L STATEMENT
     # ---------------------------------------------------------
+    # The function below is for producing a complete P&L bridge statement (Revenue -> COGS -> OPEX -> Net Profit)
     def get_pnl_statement(self) -> Dict[str, Any]:
         """Produces a complete P&L bridge: Revenue -> COGS -> Gross Margin -> OPEX -> Net Profit."""
         rev_data = self.get_revenue_summary()
@@ -179,6 +184,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 4. INVENTORY HEALTH & STOCK VALUE
     # ---------------------------------------------------------
+    # The function below is for evaluating inventory health, safety stock, low stock items, and dead stock
     def get_inventory_health(self) -> Dict[str, Any]:
         """
         Reconstructs inventory quantities from movements,
@@ -272,6 +278,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 5. CUSTOMER PROFITABILITY (WHALES VS DRAINERS)
     # ---------------------------------------------------------
+    # The function below is for calculating customer profitability, top accounts, and margin drainers
     def get_customer_profitability(self, limit: int = 10) -> Dict[str, Any]:
         """Calculates Customer-level P&L, identifying high-margin Whales and Margin Killers."""
         sql = """
@@ -316,6 +323,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 6. CASH FLOW & RUNWAY
     # ---------------------------------------------------------
+    # The function below is for calculating cash flow in/out, net cash position, AR aging, and runway days
     def get_cash_flow_summary(self) -> Dict[str, Any]:
         """Calculates Cash In (collected payments), Cash Out (expenses paid), Net Position, and Runway."""
         # Cash Collections
@@ -391,6 +399,7 @@ class BusinessAnalyticsEngine:
     # ---------------------------------------------------------
     # 7. EXECUTIVE MORNING BRIEFING
     # ---------------------------------------------------------
+    # The function below is for synthesizing the executive daily summary briefing and KPI cards
     def generate_morning_briefing(self) -> Dict[str, Any]:
         """
         Synthesizes the executive daily summary:

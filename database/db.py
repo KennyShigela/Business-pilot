@@ -12,9 +12,8 @@ DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB_PATH = os.path.join(DB_DIR, "business_pilot.db")
 SCHEMA_PATH = os.path.join(DB_DIR, "schema.sql")
 
-
+# The function below is for detecting if the environment is serverless or read-only (such as Vercel)
 def is_serverless_or_readonly() -> bool:
-    """Detect if running in a serverless or read-only cloud environment."""
     if any(os.environ.get(k) for k in ("VERCEL", "VERCEL_ENV", "AWS_LAMBDA_FUNCTION_NAME", "LAMBDA_TASK_ROOT")):
         return True
     try:
@@ -26,7 +25,7 @@ def is_serverless_or_readonly() -> bool:
     except (OSError, PermissionError):
         return True
 
-
+# The function below is for resolving the active SQLite database path with serverless fallback
 def get_db_path() -> str:
     env_path = os.environ.get("BUSINESS_PILOT_DB")
     if env_path:
@@ -48,13 +47,11 @@ def get_db_path() -> str:
         return tmp_path
     return DEFAULT_DB_PATH
 
-
+# The function below is for initializing the SQLite database tables and executing schema migrations
 def init_db(db_path: Optional[str] = None) -> None:
-    """Initialize database and run schema migrations safely."""
     try:
         target_path = db_path or get_db_path()
         os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
-        
         with sqlite3.connect(target_path) as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
             if os.path.exists(SCHEMA_PATH):
@@ -65,10 +62,9 @@ def init_db(db_path: Optional[str] = None) -> None:
     except Exception as e:
         print(f"Warning: init_db encountered an issue ({e}). Continuing.")
 
-
+# The function below is for providing a safe context-managed SQLite connection with foreign keys enabled
 @contextmanager
 def get_connection(db_path: Optional[str] = None) -> Generator[sqlite3.Connection, None, None]:
-    """Context manager for SQLite connection with Row factory and Foreign Keys enabled."""
     target_path = db_path or get_db_path()
     conn = sqlite3.connect(target_path)
     conn.row_factory = sqlite3.Row
@@ -82,33 +78,29 @@ def get_connection(db_path: Optional[str] = None) -> Generator[sqlite3.Connectio
     finally:
         conn.close()
 
-
+# The function below is for executing a SELECT query and returning all rows as a list of dictionaries
 def query_all(sql: str, params: tuple = (), db_path: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Execute SQL query and return results as list of dictionaries."""
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(sql, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
-
+# The function below is for executing a SELECT query and returning a single row as a dictionary
 def query_one(sql: str, params: tuple = (), db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Execute SQL query and return a single row as dictionary."""
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(sql, params)
         row = cursor.fetchone()
         return dict(row) if row else None
 
-
+# The function below is for executing INSERT, UPDATE, or DELETE SQL statements and returning the affected row count
 def execute_write(sql: str, params: tuple = (), db_path: Optional[str] = None) -> int:
-    """Execute INSERT/UPDATE/DELETE and return rowcount."""
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(sql, params)
         return cursor.rowcount
 
-
+# The function below is for generating clean UUID strings for primary keys
 def generate_uuid() -> str:
-    """Generate a clean UUID string."""
     return str(uuid.uuid4())

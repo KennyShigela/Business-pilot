@@ -35,6 +35,7 @@ from engine.currency import CurrencyDetector, get_exchange_rate, convert_amount
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 
 
+# The function below is for resolving the temporary or persistent file upload directory
 def get_upload_dir() -> str:
     """Return upload directory path, safely defaulting to /tmp on serverless (Vercel)."""
     if os.environ.get("VERCEL"):
@@ -45,6 +46,7 @@ def get_upload_dir() -> str:
     return upload_dir
 
 
+# The function below is for matching requested HTTP paths against target API endpoints
 def is_endpoint(path: str, endpoint: str) -> bool:
     """Matches path against target endpoint flexibly (handles trailing slashes and prefix variations)."""
     clean = path.rstrip("/")
@@ -64,6 +66,7 @@ def is_endpoint(path: str, endpoint: str) -> bool:
     return False
 
 
+# The function below is for resolving the canonical API path across hosting environments and rewrites
 def resolve_api_path(path: str, headers: Any = None, query: Optional[Dict[str, list]] = None, environ: Optional[Dict[str, Any]] = None) -> str:
     """
     Robustly resolves the canonical API path across all hosting platforms,
@@ -169,9 +172,11 @@ def resolve_api_path(path: str, headers: Any = None, query: Optional[Dict[str, l
     return chosen
 
 
+# The class below is for handling incoming HTTP requests, API endpoints, and static file serving
 class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
     """HTTP Request Handler for BusinessPilot API and Frontend."""
 
+    # The function below is for serializing and sending JSON HTTP responses with CORS headers
     def _send_json(self, data: Any, status: int = 200):
         body = json.dumps(data, default=str).encode("utf-8")
         self.send_response(status)
@@ -183,6 +188,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    # The function below is for reading and serving static frontend files with correct MIME types
     def _send_file(self, file_path: str, content_type: str = "text/html"):
         if not os.path.exists(file_path):
             self.send_error(404, "File Not Found")
@@ -196,6 +202,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
+    # The method below is for handling CORS pre-flight OPTIONS requests
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -203,6 +210,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    # The method below is for routing and handling all incoming HTTP GET requests and API endpoints
     def do_GET(self):
         try:
             self._handle_get_internal()
@@ -231,7 +239,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-        # 1. Non-API routes: serve static frontend files immediately without DB access
+        # This piece of code below deals with serving static frontend files (HTML, CSS, JS) directly
         if not path.startswith("/api"):
             clean_path = path.lstrip("/")
             if not clean_path:
@@ -258,7 +266,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_file(file_path, content_type)
             return
 
-        # 2. Lightweight API routes without DB
+        # This piece of code below deals with the system health check and base API verification
         if is_endpoint(path, "/api/health"):
             self._send_json({"status": "ok", "system": "BusinessPilot BOS", "version": "1.0.0"})
             return
@@ -267,13 +275,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"status": "ok", "system": "BusinessPilot BOS API", "version": "1.0.0"})
             return
 
-        # 3. Resolve company ID safely: from query parameter, or most recent company in DB
+        # Resolve company ID safely: from query parameter, or unregistered default
         req_company_id = query.get("company_id", [None])[0]
         if req_company_id and req_company_id.strip():
             company_id = req_company_id.strip()
         else:
             company_id = "unregistered-workspace"
 
+        # This piece of code below deals with verifying and retrieving the active business user session
         if is_endpoint(path, "/api/auth/session"):
             active_comp = None
             if req_company_id and req_company_id.strip() and req_company_id.strip() != "unregistered-workspace":
@@ -329,11 +338,13 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 })
             return
 
+        # This piece of code below deals with listing all registered business workspaces
         elif is_endpoint(path, "/api/companies"):
             companies = query_all("SELECT * FROM companies ORDER BY name ASC;")
             self._send_json({"companies": companies})
             return
 
+        # This piece of code below deals with returning executive dashboard KPIs, briefing, and trend summaries
         elif is_endpoint(path, "/api/dashboard"):
             if company_id != "unregistered-workspace":
                 # Ensure company row exists in current container database
@@ -385,6 +396,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # This piece of code below deals with returning detailed P&L statements, expense summaries, and sales trends
         elif is_endpoint(path, "/api/analytics"):
             analytics = BusinessAnalyticsEngine(company_id)
             self._send_json({
@@ -395,6 +407,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # This piece of code below deals with returning recent sales ledger transactions
         elif is_endpoint(path, "/api/sales"):
             limit = int(query.get("limit", [50])[0])
             sql = """
@@ -412,12 +425,14 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"sales": sales, "summary": summary})
             return
 
+        # This piece of code below deals with returning customer profitability and accounts receivable aging
         elif is_endpoint(path, "/api/customers"):
             analytics = BusinessAnalyticsEngine(company_id)
             cust_data = analytics.get_customer_profitability(limit=50)
             self._send_json(cust_data)
             return
 
+        # This piece of code below deals with returning product inventory stock levels and valuations
         elif is_endpoint(path, "/api/inventory"):
             analytics = BusinessAnalyticsEngine(company_id)
             inv_data = analytics.get_inventory_health()
@@ -436,6 +451,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"summary": inv_data, "products": products})
             return
 
+        # This piece of code below deals with returning operating expenses and category breakdowns
         elif is_endpoint(path, "/api/expenses"):
             analytics = BusinessAnalyticsEngine(company_id)
             exp_summary = analytics.get_expense_summary()
@@ -454,10 +470,10 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"summary": exp_summary, "expenses": expenses})
             return
 
+        # This piece of code below deals with returning cash runway metrics, burn rate, and liquidity projections
         elif is_endpoint(path, "/api/cashflow"):
             analytics = BusinessAnalyticsEngine(company_id)
             cash_summary = analytics.get_cash_flow_summary()
-            # Projected next 60 days schedule
             bal = cash_summary["current_cash_balance"]
             burn = cash_summary["monthly_burn_rate"]
             daily_burn = burn / 30.0
@@ -472,6 +488,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"cash_summary": cash_summary, "forecast_points": forecast_points})
             return
 
+        # This piece of code below deals with returning predictive revenue and inventory stockout forecasts
         elif is_endpoint(path, "/api/forecasts"):
             engine = ForecastingEngine(company_id)
             rev_fc = engine.generate_revenue_forecast(horizon_months=3)
@@ -479,15 +496,16 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"revenue_forecast": rev_fc, "stockout_forecast": stock_fc})
             return
 
+        # This piece of code below deals with evaluating and returning proactive early warning business alerts
         elif is_endpoint(path, "/api/alerts"):
             sev = query.get("severity", ["ALL"])[0]
             engine = EarlyWarningAlertEngine(company_id)
-            # Evaluate & refresh alerts
             engine.evaluate_and_refresh_alerts()
             alerts = engine.get_active_alerts(severity=sev)
             self._send_json({"alerts": alerts, "count": len(alerts)})
             return
 
+        # This piece of code below deals with generating and exporting executive board pack PDF reports
         elif is_endpoint(path, "/api/reports/pdf"):
             try:
                 generator = ManagementReportGenerator(company_id)
@@ -502,6 +520,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(e)}, status=500)
             return
 
+        # This piece of code below deals with generating clean print-ready HTML management briefing reports
         elif is_endpoint(path, "/api/reports/html"):
             generator = ManagementReportGenerator(company_id)
             html_str = generator.generate_html_report()
@@ -513,6 +532,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(html_bytes)
             return
 
+        # This piece of code below deals with listing uploaded spreadsheet data sources and sheet metadata
         elif is_endpoint(path, "/api/data-sources"):
             comp_id = query.get("company_id", [None])[0]
             if not comp_id:
@@ -563,6 +583,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"files": files, "count": len(files)})
             return
 
+        # This piece of code below deals with downloading sample spreadsheets or uploaded files
         elif is_endpoint(path, "/api/download-file"):
             fname = query.get("file", ["LexCorp_Business_Operations.xlsx"])[0]
             safe_fname = os.path.basename(fname)
@@ -582,6 +603,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "File Not Found")
                 return
 
+        # This piece of code below deals with checking AI analyst API key configuration and rate limits
         elif is_endpoint(path, "/api/ai/status"):
             has_env_key = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
             self._send_json({
@@ -604,6 +626,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
 
         self.send_error(404, "Endpoint not found")
 
+    # The method below is for routing and handling all incoming HTTP POST requests and data mutation pipelines
     def do_POST(self):
         try:
             self._handle_post_internal()
@@ -657,6 +680,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         if not body and hasattr(self, "rfile") and hasattr(self.rfile, "getvalue"):
             body = self.rfile.getvalue()
 
+        # This piece of code below deals with loading the ABC Supermarket sample dataset for interactive demos
         if is_endpoint(path, "/api/load-sample"):
             company_id = "company-abc-supermarket-001"
             init_db()
@@ -683,6 +707,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "message": "Loaded ABC Supermarket Ltd sample dataset", "result": res})
             return
 
+        # This piece of code below deals with uploading spreadsheet files, auto-detecting currencies, and staging data
         elif is_endpoint(path, "/api/upload-file"):
             try:
                 data = json.loads(body.decode("utf-8"))
@@ -722,6 +747,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
+        # This piece of code below deals with inspecting pre-staged sample spreadsheets and detecting currencies
         elif is_endpoint(path, "/api/upload-staged-file"):
             try:
                 data = json.loads(body.decode("utf-8")) if body else {}
@@ -759,6 +785,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
+        # This piece of code below deals with registering a new business profile and setting its default currency
         elif is_endpoint(path, "/api/auth/register"):
             try:
                 init_db()
@@ -820,6 +847,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
+        # This piece of code below deals with clearing the database and uploaded files for fresh user onboarding
         elif is_endpoint(path, "/api/system/reset"):
             try:
                 with get_connection() as conn:
@@ -844,6 +872,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=500)
             return
 
+        # This piece of code below deals with importing public Google Sheets spreadsheets and auto-converting currencies
         elif is_endpoint(path, "/api/import-google-sheet"):
             try:
                 data = json.loads(body.decode("utf-8"))
@@ -928,6 +957,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
+        # This piece of code below deals with confirming schema mappings and importing staged data into core tables
         elif is_endpoint(path, "/api/confirm-import"):
             try:
                 data = json.loads(body.decode("utf-8"))
@@ -956,6 +986,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": False, "error": str(e)}, status=400)
             return
 
+        # This piece of code below deals with querying the AI business analyst with grounded financial facts
         elif is_endpoint(path, "/api/ai/query"):
             try:
                 data = json.loads(body.decode("utf-8"))
@@ -975,6 +1006,7 @@ class BusinessPilotAPIHandler(BaseHTTPRequestHandler):
         self.send_error(404, "Endpoint not found")
 
 
+# The class below is for handling requests inside WSGI-compatible cloud hosting environments
 class WSGIHandler(BusinessPilotAPIHandler):
     """Internal request handler for WSGI-adapted environments."""
 
@@ -1007,6 +1039,7 @@ class WSGIHandler(BusinessPilotAPIHandler):
         self.wfile.write(err_body)
 
 
+# The function below is for processing ASGI 3 requests in modern serverless hosting environments
 async def handle_asgi(scope: Dict[str, Any], receive: Any, send: Any):
     """ASGI 3 request processor for Vercel Python runtime."""
     if scope.get("type") == "lifespan":
@@ -1069,6 +1102,7 @@ async def handle_asgi(scope: Dict[str, Any], receive: Any, send: Any):
     })
 
 
+# The class below provides polymorphic handling across BaseHTTPRequestHandler, WSGI, and ASGI runtimes
 class DualHandler(BusinessPilotAPIHandler):
     """
     Polymorphic handler that works seamlessly as:
@@ -1078,17 +1112,14 @@ class DualHandler(BusinessPilotAPIHandler):
     """
 
     def __new__(cls, *args, **kwargs):
-        # Case 1: WSGI (2 positional args: environ, start_response)
         if len(args) == 2 and callable(args[1]):
             environ, start_response = args
             return cls._handle_wsgi(environ, start_response)
 
-        # Case 2: ASGI (3 positional args: scope, receive, send where scope is a dict)
         if len(args) == 3 and isinstance(args[0], dict) and "type" in args[0]:
             scope, receive, send = args
             return handle_asgi(scope, receive, send)
 
-        # Case 3: BaseHTTPRequestHandler (request, client_address, server)
         return super().__new__(cls)
 
     @classmethod
@@ -1134,6 +1165,7 @@ class DualHandler(BusinessPilotAPIHandler):
         return [inst.wfile.getvalue()]
 
 
+# The function below is a universal application entrypoint supporting ASGI, WSGI, and HTTPServer
 def universal_app(*args, **kwargs):
     """Universal application entrypoint supporting ASGI, WSGI, and BaseHTTPRequestHandler."""
     if len(args) == 2 and callable(args[1]):
@@ -1143,6 +1175,7 @@ def universal_app(*args, **kwargs):
     return DualHandler(*args, **kwargs)
 
 
+# The function below is for launching the local HTTP server on a specified port
 def run_server(port: int = 8080):
     init_db()
     server_address = ("", port)

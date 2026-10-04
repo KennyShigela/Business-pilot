@@ -10,10 +10,11 @@ import pandas as pd
 from typing import Dict, List, Any, Optional, Tuple
 from database.db import execute_write, query_one, generate_uuid, get_connection
 
-
+# The class below is for reading and inspecting Excel and CSV spreadsheet files
 class SpreadsheetReader:
     """Universal reader for Excel and CSV business files."""
 
+    # The function below is for inspecting an uploaded file and returning sheet names, preview rows, and columns
     @staticmethod
     def inspect_file(file_path: str) -> Dict[str, Any]:
         """
@@ -36,7 +37,6 @@ class SpreadsheetReader:
             sheet_names = excel_file.sheet_names
             for sheet in sheet_names:
                 df = pd.read_excel(excel_file, sheet_name=sheet, nrows=50)
-                # Clean column headers
                 cleaned_cols = [str(col).strip() for col in df.columns if not str(col).startswith("Unnamed:")]
                 preview_rows = df.head(5).fillna("").to_dict(orient="records")
                 sheets_data[sheet] = {
@@ -45,7 +45,6 @@ class SpreadsheetReader:
                     "preview": preview_rows,
                 }
         elif ext == ".csv":
-            # Auto-detect encoding
             for encoding in ["utf-8", "latin-1", "cp1252"]:
                 try:
                     df = pd.read_csv(file_path, encoding=encoding, nrows=50)
@@ -70,6 +69,7 @@ class SpreadsheetReader:
             "sheets": sheets_data,
         }
 
+    # The function below is for loading an entire sheet from a file into a pandas DataFrame
     @staticmethod
     def load_full_sheet(file_path: str, sheet_name: Optional[str] = None) -> pd.DataFrame:
         """Loads complete sheet data into a pandas DataFrame."""
@@ -84,17 +84,16 @@ class SpreadsheetReader:
         else:
             raise ValueError(f"Unsupported format: {ext}")
 
-        # Drop columns that are completely empty / unnamed index columns
         cols_to_keep = [col for col in df.columns if not str(col).startswith("Unnamed:")]
         df = df[cols_to_keep]
-        # Strip string columns
         df.columns = [str(col).strip() for col in df.columns]
         return df
 
-
+# The class below is for managing raw data staging and tracking import audit history
 class StagingManager:
     """Manages data_sources, import_jobs, and raw_import_rows."""
 
+    # The function below is for creating an import job tracking record in the database
     @staticmethod
     def create_import_job(company_id: str, file_path: str, source_type: str = "EXCEL") -> Tuple[str, str]:
         """Creates a data_source and an active import_job record."""
@@ -119,6 +118,7 @@ class StagingManager:
             )
         return source_id, job_id
 
+    # The function below is for staging raw spreadsheet rows as JSON records for auditability
     @staticmethod
     def stage_raw_dataframe(job_id: str, df: pd.DataFrame) -> int:
         """

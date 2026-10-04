@@ -129,6 +129,7 @@ _CACHE_TIMESTAMP: float = 0.0
 _CACHE_TTL_SECONDS: float = 1800.0  # 30-minute caching to ensure high responsiveness
 
 
+# The function below is for directly fetching live online market exchange rates with automatic caching
 def fetch_live_rates(force_refresh: bool = False) -> Tuple[Dict[str, float], bool]:
     """
     Directly fetches live, real-time market exchange rates from online APIs.
@@ -190,6 +191,7 @@ def fetch_live_rates(force_refresh: bool = False) -> Tuple[Dict[str, float], boo
     return EXCHANGE_RATES_TO_USD, False
 
 
+# The function below is for normalizing any currency string, abbreviation, or symbol into a standard ISO-4217 code
 def normalize_currency_code(raw: Optional[str]) -> str:
     """Normalizes any currency string, abbreviation, or symbol into standard ISO-4217 code."""
     if not raw:
@@ -219,6 +221,7 @@ def normalize_currency_code(raw: Optional[str]) -> str:
     return cleaned if cleaned in EXCHANGE_RATES_TO_USD else "USD"
 
 
+# The function below is for returning user-friendly currency display names (e.g. 'TZS Shillings', 'KES Shillings')
 def get_currency_display_name(curr_code: Optional[str]) -> str:
     """
     Returns user-friendly currency display name (e.g. 'TZS Shillings', 'KES Shillings', 'USD Dollars').
@@ -249,6 +252,7 @@ def get_currency_display_name(curr_code: Optional[str]) -> str:
     return names.get(code, f"{code} Shillings" if code in ["TZS", "KES", "UGX"] else f"{code} Currency")
 
 
+# The function below is for calculating the conversion rate between two currencies using live rates
 def get_exchange_rate(from_curr: str, to_curr: str, live: bool = True) -> float:
     """
     Calculates conversion rate from from_curr to to_curr using live online rates.
@@ -272,6 +276,7 @@ def get_exchange_rate(from_curr: str, to_curr: str, live: bool = True) -> float:
     return round(rate, 6)
 
 
+# The function below is for converting a monetary amount using specified or live FX exchange rates
 def convert_amount(amount: float, from_curr: str, to_curr: str, rate: Optional[float] = None) -> float:
     """Converts a monetary amount using specified or looked-up live FX exchange rate."""
     if amount == 0.0:
@@ -281,6 +286,7 @@ def convert_amount(amount: float, from_curr: str, to_curr: str, rate: Optional[f
     return round(float(amount) * rate, 2)
 
 
+# The class below is for detecting currencies in spreadsheets and generating user alerts
 class CurrencyDetector:
     """Detects the active currency of spreadsheets by examining headers, cell strings, and columns."""
 
@@ -321,6 +327,7 @@ class CurrencyDetector:
         (re.compile(r"^\s*(AED)\s*[\d,.]+", re.IGNORECASE), "AED"),
     ]
 
+    # The function below is for inspecting DataFrame headers and sample cell values to detect currency
     @classmethod
     def detect_currency_from_dataframe(cls, df: pd.DataFrame) -> Dict[str, Any]:
         """
@@ -388,6 +395,7 @@ class CurrencyDetector:
             "evidence": "; ".join(evidence[:3]),
         }
 
+    # The function below is for inspecting an entire spreadsheet file across all sheets and generating conversion metadata
     @classmethod
     def detect_workbook_currency(cls, file_path: str, default_currency: str = "TZS", live_rates: bool = True) -> Dict[str, Any]:
         """

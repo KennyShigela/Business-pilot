@@ -17,6 +17,7 @@ from engine.forecasting import ForecastingEngine
 from engine.alerts_engine import EarlyWarningAlertEngine
 
 
+# The class below defines the controlled, typed business tools exposed to the AI Analyst
 class ControlledAIToolRegistry:
     """Safe, typed tools exposed to the AI Analyst."""
 
@@ -59,6 +60,7 @@ class ControlledAIToolRegistry:
         return self.alerts_engine.evaluate_and_refresh_alerts()
 
 
+# The class below is for executing grounded AI analysis and formatting executive strategic advice
 class AIBusinessAnalyst:
     """Conversational Business Analyst executing intent classification and verified tool calls."""
 
@@ -70,6 +72,7 @@ class AIBusinessAnalyst:
         self.currency = comp["currency"] if comp else "USD"
         self.business_type = comp["business_type"] if comp else "General"
 
+    # The function below is for querying the Google Gemini 1.5 Flash API with strict financial ledger context
     def _call_gemini_api(self, question: str, context: Dict[str, Any], api_key: str) -> Optional[str]:
         """Calls Google Gemini 1.5 Flash API with verified financial grounding."""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
@@ -129,6 +132,7 @@ class AIBusinessAnalyst:
             return None
         return None
 
+    # The function below is for determining the business analytical intent of a user question
     def classify_intent(self, question: str) -> str:
         """Determines the business analytical intent of a user question."""
         q = question.lower()
@@ -151,6 +155,7 @@ class AIBusinessAnalyst:
         else:
             return "GENERAL_BRIEFING"
 
+    # The function below is for answering strategic business questions using grounded financial context
     def answer_question(self, question: str, conversation_id: Optional[str] = None, api_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Executes intent detection, invokes controlled tools, synthesizes a 3-part

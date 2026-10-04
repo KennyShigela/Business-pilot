@@ -20,7 +20,7 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Persistent Left Sidebar -->
+    <!-- This piece of code below deals with the persistent left navigation sidebar and menu links -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo-badge">
@@ -95,7 +95,8 @@
     <!-- Main Content Area -->
     <div class="main-wrapper">
       <!-- Top Header -->
-      <header class="top-header">
+      <!-- This piece of code below deals with the top header navigation bar, search input, and user workspace controls -->
+    <header class="top-header">
         <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;">
           <button class="btn-mobile-menu" id="btn-mobile-menu" aria-label="Toggle navigation menu" title="Menu">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
@@ -120,11 +121,13 @@
       </header>
 
       <!-- Main Body -->
+      <!-- This piece of code below deals with the main application workspace container and dynamic view panels -->
       <main class="content-body">
         
         <!-- ============================================== -->
         <!-- SCREEN 02: EXECUTIVE DASHBOARD (OVERVIEW)       -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with the general overview dashboard, financial KPI cards, and revenue chart -->
         <section id="view-dashboard" class="view-panel active">
           <div class="view-header">
             <div class="view-title-group">
@@ -220,6 +223,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 03: ANALYTICS (P&L & MARGINS)            -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with executive financial analytics, profit & loss waterfall bridge, and margin breakdown -->
         <section id="view-analytics" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -255,6 +259,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 04: SALES (OPERATIONAL ORDERS)          -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with sales transactions, revenue performance filters, and sales record tables -->
         <section id="view-sales" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -289,6 +294,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 05: CUSTOMERS (PROFITABILITY & WHALES)  -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with customer portfolio management, customer lifetime value, and profitability tables -->
         <section id="view-customers" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -320,6 +326,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 06: INVENTORY (HEALTH & DEAD STOCK)     -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with inventory stock tracking, valuation metrics, and stockout warning indicators -->
         <section id="view-inventory" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -370,6 +377,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 07: EXPENSES                            -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with operating expenses tracking, category breakdown donut chart, and vendor expenses -->
         <section id="view-expenses" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -451,6 +459,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 08: CASH FLOW                           -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with cash flow forecasting, net cash burn, liquidity projection, and runway tracking -->
         <section id="view-cashflow" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -489,6 +498,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 10: AI ANALYST                          -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with the grounded AI Business Analyst conversational interface and intelligence briefing -->
         <section id="view-ai-analyst" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -533,6 +543,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 09: FORECASTS                           -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with predictive revenue forecasting, stockout risk horizon, and confidence band charts -->
         <section id="view-forecasts" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -590,6 +601,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 11: ALERTS CENTER                       -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with early warning risk alerts, anomaly monitors, and severity-filtered notifications -->
         <section id="view-alerts" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -610,6 +622,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 12: MANAGEMENT REPORTS                  -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with automated management board pack report generation and PDF/HTML downloads -->
         <section id="view-reports" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -660,6 +673,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 13, 14, 15: DATA SOURCES & AI MAPPING   -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with spreadsheet ingestion, drag-and-drop file upload, and Google Sheets URL importer -->
         <section id="view-datasources" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -771,7 +785,7 @@
             </div>
           </div>
 
-          <!-- Mapping Review Card (Revealed after upload) -->
+          <!-- This piece of code below deals with the spreadsheet column mapping review card and schema confirmation -->
           <div class="mapping-card" id="mapping-card" style="display:none;">
             <div class="card-header">
               <div class="card-title">Review Data Mapping</div>
@@ -867,9 +881,7 @@
     </div>
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: REGISTRATION & WORKSPACE SETUP          -->
-  <!-- ============================================== -->
+  <!-- This piece of code below deals with the company registration and onboarding modal popup dialog -->
   <div id="registration-modal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">

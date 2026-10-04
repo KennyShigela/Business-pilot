@@ -1,4 +1,4 @@
-/* BusinessPilot Executive OS - Design System */
+/* This piece of code below deals with the core color variables, theme tokens, and typography defaults */
 :root {
   --bg-app: #f8fafc;
   --bg-card: #ffffff;
@@ -34,14 +34,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* App Layout */
+/* This piece of code below deals with the main application grid and flex layout container */
 .app-container {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
-/* Sidebar */
+/* This piece of code below deals with the persistent left navigation sidebar and menu links */
 .sidebar {
   width: var(--sidebar-w);
   background-color: #ffffff;
@@ -172,7 +172,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Main Area */
+/* This piece of code below deals with the main content area layout and scrolling wrappers */
 .main-wrapper {
   flex: 1;
   display: flex;
@@ -180,7 +180,7 @@ body {
   overflow: hidden;
 }
 
-/* Top Header */
+/* This piece of code below deals with the top header navigation bar, search input, and workspace controls */
 .top-header {
   height: var(--header-h);
   background-color: #ffffff;
@@ -278,14 +278,14 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-/* Content Area */
+/* This piece of code below deals with the main scrollable content body and view panel containers */
 .content-body {
   flex: 1;
   overflow-y: auto;
   padding: 1.75rem 2rem;
 }
 
-/* Dashboard Header */
+/* This piece of code below deals with dashboard header titles, date selectors, and view action buttons */
 .view-header {
   display: flex;
   justify-content: space-between;
@@ -349,7 +349,7 @@ body {
   background: #f8fafc;
 }
 
-/* KPI Cards Grid */
+/* This piece of code below deals with executive KPI summary metric cards and counter displays */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -426,7 +426,7 @@ body {
   color: var(--text-dim);
 }
 
-/* AI Summary Banner */
+/* This piece of code below deals with the AI executive briefing and summary banner cards */
 .ai-summary-card {
   background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
   border: 1px solid #cbd5e1;
@@ -463,7 +463,7 @@ body {
   cursor: pointer;
 }
 
-/* Charts Grid */
+/* This piece of code below deals with chart containers and responsive data visualization wrappers */
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1.25fr;
@@ -516,7 +516,7 @@ body {
   }
 }
 
-/* Attention Required / Alerts */
+/* This piece of code below deals with early warning alert cards and attention-required notices */
 .attention-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -555,7 +555,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Data Tables */
+/* This piece of code below deals with financial data tables, table headers, and alternating rows */
 .data-table-container {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -593,7 +593,7 @@ body {
   background-color: #f8fafc;
 }
 
-/* Status Badges */
+/* This piece of code below deals with status badges, confidence chips, and severity tags */
 .badge-status {
   display: inline-block;
   padding: 0.2rem 0.5rem;
@@ -617,7 +617,7 @@ body {
   color: var(--danger);
 }
 
-/* Upload & Mapping UI */
+/* This piece of code below deals with file upload dropzones, progress bars, and column mapping UI */
 .upload-dropzone {
   border: 2px dashed #cbd5e1;
   border-radius: var(--radius-card);
@@ -674,7 +674,7 @@ body {
   transition: width 0.4s ease;
 }
 
-/* Hidden views */
+/* This piece of code below deals with view panels visibility toggles and active panel display */
 .view-panel {
   display: none;
 }
@@ -683,20 +683,28 @@ body {
   display: block;
 }
 
-/* Modal Overlay & Card for Workspace Registration */
+/* This piece of code below deals with modal dialog overlays and workspace registration popup forms */
+html.has-workspace #registration-modal:not(.force-open) {
+  display: none !important;
+}
+
+#registration-modal.force-open {
+  display: flex !important;
+}
+
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modal-card {
@@ -704,10 +712,16 @@ body {
   border-radius: 12px;
   width: 100%;
   max-width: 580px;
+  max-height: min(92vh, 92dvh);
+  display: flex;
+  flex-direction: column;
   padding: 2rem;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--border-subtle);
   animation: modalEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: auto;
 }
 
 @keyframes modalEnter {
@@ -786,7 +800,7 @@ body {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-/* Upload Switcher Tabs */
+/* This piece of code below deals with spreadsheet upload tab switchers (Excel vs Google Sheets) */
 .upload-tabs {
   display: flex;
   gap: 0.5rem;
@@ -846,7 +860,7 @@ body {
   margin: 0 auto 1.25rem auto;
 }
 
-/* Expense Breakdown & Progress Helpers */
+/* This piece of code below deals with expense category progress bars and breakdown meter helpers */
 .progress-bar-bg {
   width: 100px;
   height: 6px;
@@ -880,7 +894,7 @@ body {
 /* GOOGLE GEMINI AI CHAT & ANALYST EXPERIENCE                   */
 /* ============================================================ */
 
-/* Gemini Sparkle Gradient Icon */
+/* This piece of code below deals with Gemini sparkle gradient icons and badge decorations */
 .gemini-sparkle-icon {
   width: 20px;
   height: 20px;
@@ -904,7 +918,7 @@ body {
   }
 }
 
-/* Gemini User Query Bubble */
+/* This piece of code below deals with AI chat user query bubbles and message containers */
 .gemini-user-msg {
   display: flex;
   align-items: flex-start;
@@ -936,7 +950,7 @@ body {
   padding-top: 3px;
 }
 
-/* Gemini Response Container */
+/* This piece of code below deals with AI response containers, markdown tables, and typography */
 .gemini-response-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -973,7 +987,7 @@ body {
   font-weight: 600;
 }
 
-/* Gemini Thinking State */
+/* This piece of code below deals with AI model thinking state animations and loading pulses */
 .gemini-thinking-wrap {
   padding: 1.25rem 0;
   display: flex;
@@ -1011,7 +1025,7 @@ body {
   100% { background-position: -200% 0; }
 }
 
-/* Gemini Streaming Text & Cursor */
+/* This piece of code below deals with AI streaming typewriter cursor effects */
 .gemini-text-stream {
   font-size: 0.95rem;
   line-height: 1.7;
@@ -1040,7 +1054,7 @@ body {
   50% { opacity: 0; transform: scaleY(0.85); }
 }
 
-/* Gemini Thought Process Disclosure Accordion */
+/* This piece of code below deals with AI model reasoning thought process accordions */
 .gemini-thoughts-accordion {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -1076,7 +1090,7 @@ body {
   display: block;
 }
 
-/* Gemini Action Toolbar */
+/* This piece of code below deals with AI action toolbars, copy buttons, and feedback ratings */
 .gemini-action-bar {
   display: flex;
   align-items: center;
@@ -1258,14 +1272,145 @@ body {
     min-width: 520px;
   }
 
+  .modal-overlay {
+    padding: 0.75rem 0.5rem;
+    align-items: flex-start;
+  }
+
   .modal-card {
     padding: 1.25rem 1rem;
-    max-width: 95vw;
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 10px;
+    margin: 0 auto;
   }
 
   .form-row {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 16px !important;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .modal-header {
+    margin-bottom: 1rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.22rem;
+  }
+
+  .modal-header p {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .modal-actions {
+    margin-top: 1rem !important;
+  }
+
+  #btn-submit-register {
+    min-height: 48px;
+    font-size: 0.95rem !important;
+  }
+}
+
+/* This piece of code below deals with floating toast notification alert popups */
+#toast-container {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 460px;
+  width: calc(100% - 2.5rem);
+  pointer-events: none;
+}
+
+.toast-notification {
+  pointer-events: auto;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #2563eb;
+  padding: 0.9rem 1.1rem;
+  box-shadow: 0 12px 28px -4px rgba(30, 58, 138, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-notification.toast-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast-notification.toast-success {
+  border-left-color: #10b981;
+  border-color: #bbf7d0;
+}
+
+.toast-notification.toast-warning {
+  border-left-color: #f59e0b;
+  border-color: #fde68a;
+}
+
+.toast-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.toast-body {
+  flex: 1;
+}
+
+.toast-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.toast-message {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.42;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 4px;
+  transition: color 0.15s;
+}
+
+.toast-close:hover {
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  #toast-container {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
   }
 }
 

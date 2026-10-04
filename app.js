@@ -4,20 +4,22 @@
  * file upload pipelines, schema mapping previews, and AI queries.
  */
 
+// This piece of code below deals with global application configuration and active workspace session state
 const API_BASE = ""; // Relative to host
 let currentCompanyId = localStorage.getItem("business_pilot_company_id") || localStorage.getItem("bizlens_company_id") || "";
-let currentCurrency = localStorage.getItem("business_pilot_currency") || localStorage.getItem("bizlens_currency") || "USD";
+let currentCurrency = localStorage.getItem("business_pilot_currency") || localStorage.getItem("bizlens_currency") || "TZS";
 let currentUserName = localStorage.getItem("business_pilot_user_name") || localStorage.getItem("bizlens_user_name") || "Business Owner";
 let currentCompanyName = localStorage.getItem("business_pilot_company_name") || localStorage.getItem("bizlens_company_name") || "My Business";
+let currentBusinessType = localStorage.getItem("business_pilot_business_type") || "Retail";
 let activeUploadedFilePath = null;
 
-// Chart Instances
+// This piece of code below deals with active Apache ECharts visualization instances
 let revTrendChart = null;
 let expenseDonutChart = null;
 let cashProjectionChart = null;
 let pnlBridgeChart = null;
 
-// Initialize on DOM load
+// This piece of code below deals with initializing application modules and event listeners upon DOM content loaded
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   setupUploadDropzone();
@@ -37,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 150);
   }
 
+  // The function below is for resizing all active chart instances on window or container resize
   function resizeAllCharts() {
     if (revTrendChart) revTrendChart.resize();
     if (expenseDonutChart) expenseDonutChart.resize();
@@ -56,10 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // -------------------------------------------------------------
-// FIGURE COUNT-UP ANIMATIONS (Page Enter & Scroll Observer)
-// -------------------------------------------------------------
+// This piece of code below deals with numerical figure count-up animations and scroll observation
 let figureObserver = null;
 
+// The function below is for parsing numerical figures, currency symbols, and formatted numbers for counter animations
 function parseFigure(str) {
   if (typeof str !== "string") str = String(str || "");
   const match = str.trim().match(/^([^0-9\-+]*)([-+]?[0-9][0-9,]*(?:\.[0-9]+)?)(.*)$/);
@@ -75,17 +78,17 @@ function parseFigure(str) {
   return { prefix, targetNum, decimals, hasCommas, suffix };
 }
 
+// The function below is for calculating the cubic ease-out animation curve for smooth transitions
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+// The function below is for animating numerical figures with smooth counting transitions
 function animateFigureCount(element, finalValue = null, duration = 1100) {
   if (!element) return;
 
   if (finalValue !== null && finalValue !== undefined) {
     element.setAttribute("data-target-val", String(finalValue));
-  } else if (element.hasAttribute("data-target-val")) {
-    finalValue = element.getAttribute("data-target-val");
   } else {
     finalValue = element.innerText.trim();
     element.setAttribute("data-target-val", finalValue);
@@ -113,6 +116,7 @@ function animateFigureCount(element, finalValue = null, duration = 1100) {
 
   const startTime = performance.now();
 
+  // The function below is for calculating and rendering each frame during the number counter animation
   function step(currentTime) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(1, elapsed / duration);
@@ -152,6 +156,7 @@ function animateFigureCount(element, finalValue = null, duration = 1100) {
   element._countAnimId = requestAnimationFrame(step);
 }
 
+// The function below is for triggering smooth counter animations on all metrics inside a container
 function animateFiguresInContainer(container, duration = 1100) {
   if (!container) return;
   const elements = container.querySelectorAll(".kpi-value, .count-figure, .kpi-sub span:first-child, #cash-unpaid-invoices, #cash-runway-countdown");
@@ -165,6 +170,7 @@ function animateFiguresInContainer(container, duration = 1100) {
   });
 }
 
+// The function below is for setting up an intersection observer to animate numbers when scrolled into view
 function setupFigureScrollObserver() {
   if (figureObserver) {
     figureObserver.disconnect();
@@ -207,6 +213,7 @@ function setupFigureScrollObserver() {
   refreshFigureObserver();
 }
 
+// The function below is for refreshing figure observer targets when new dynamic elements are rendered
 function refreshFigureObserver() {
   if (!figureObserver) return;
   document.querySelectorAll(".kpi-card, .kpi-value, .count-figure").forEach(el => {
@@ -215,8 +222,8 @@ function refreshFigureObserver() {
 }
 
 // -------------------------------------------------------------
-// NAVIGATION ROUTER
-// -------------------------------------------------------------
+// This piece of code below deals with sidebar navigation links, mobile drawer toggles, and view routing
+// The function below is for setting up sidebar navigation links, mobile drawer toggles, and view routing
 function setupNavigation() {
   const navItems = document.querySelectorAll(".nav-item");
   const sidebar = document.querySelector(".sidebar");
@@ -249,6 +256,7 @@ function setupNavigation() {
   });
 }
 
+// The function below is for switching between different dashboard views and sub-panels
 function switchView(viewName) {
   // Update sidebar active class
   document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
@@ -302,8 +310,8 @@ function switchView(viewName) {
 }
 
 // -------------------------------------------------------------
-// DATA LOADERS
-// -------------------------------------------------------------
+// This piece of code below deals with loading all primary dashboard metrics and overview data
+// The function below is for fetching and populating all overview metrics, charts, and activity data
 async function loadAllDashboardData() {
   try {
     const res = await fetch(`${API_BASE}/api/dashboard?company_id=${currentCompanyId}`);
@@ -314,9 +322,36 @@ async function loadAllDashboardData() {
   }
 }
 
+// The function below is for determining the currency symbol or prefix based on the currency code
+function getCurrencySymbol(curr) {
+  const c = (curr || currentCurrency || "TZS").toUpperCase();
+  const map = {
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "TZS": "TZS",
+    "KES": "KSh",
+    "UGX": "USh",
+    "RWF": "RF",
+    "ZAR": "R",
+    "NGN": "₦",
+    "GHS": "GH₵",
+    "CAD": "CA$",
+    "AUD": "AU$",
+    "INR": "₹",
+    "JPY": "¥",
+    "CNY": "¥"
+  };
+  return map[c] || c;
+}
+
+// The function below is for formatting numerical values into formatted currency strings with proper symbols
 function formatCurrency(val, currency = null) {
-  const curr = currency || currentCurrency || "USD";
-  if (val === undefined || val === null) return `${curr} 0`;
+  const curr = currency || currentCurrency || "TZS";
+  const sym = getCurrencySymbol(curr);
+  if (val === undefined || val === null) {
+    return sym.length > 1 ? `${sym} 0` : `${sym}0`;
+  }
   const abs = Math.abs(val);
   let formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 0 });
   if (abs >= 1000000) {
@@ -326,37 +361,71 @@ function formatCurrency(val, currency = null) {
   } else {
     formatted = `${val.toFixed(0)}`;
   }
-  return `${curr} ${formatted}`;
+  return sym.length > 1 ? `${sym} ${formatted}` : `${sym}${formatted}`;
 }
 
+// The function below is for rendering overview KPI summary cards, badges, and financial highlights
 function renderDashboard(data) {
   const { briefing, kpi_cards, inventory, cash, trends, company } = data;
 
+  if (company && company.currency) {
+    currentCurrency = company.currency;
+    localStorage.setItem("business_pilot_currency", currentCurrency);
+  }
+
   if (company && company.name) {
+    currentCompanyName = company.name;
     document.getElementById("sidebar-company-name").innerText = company.name;
-    document.getElementById("sidebar-company-sub").innerText = `${company.industry || "Retail"} · ${company.currency || "TZS"}`;
+    document.getElementById("sidebar-company-sub").innerText = `${company.industry || company.business_type || "Retail"} · ${currentCurrency}`;
     const avatar = document.getElementById("sidebar-company-avatar");
     if (avatar) avatar.innerText = company.name.charAt(0).toUpperCase();
   }
 
   // 1. KPI Cards
-  document.getElementById("kpi-rev-val").innerText = formatCurrency(kpi_cards.revenue.value);
-  const revGrowth = kpi_cards.revenue.growth;
+  const isRevZero = !kpi_cards || !kpi_cards.revenue || kpi_cards.revenue.value === 0;
+  document.getElementById("kpi-rev-val").innerText = formatCurrency(kpi_cards ? kpi_cards.revenue.value : 0, currentCurrency);
+  const revGrowth = kpi_cards ? kpi_cards.revenue.growth : 0;
   const growthEl = document.getElementById("kpi-rev-growth");
-  growthEl.innerText = `${revGrowth >= 0 ? "↑" : "↓"} ${Math.abs(revGrowth)}%`;
-  growthEl.className = revGrowth >= 0 ? "trend-up" : "trend-down";
+  if (isRevZero && revGrowth === 0) {
+    growthEl.innerText = "0%";
+    growthEl.className = "trend-up";
+  } else {
+    growthEl.innerText = `${revGrowth >= 0 ? "↑" : "↓"} ${Math.abs(revGrowth)}%`;
+    growthEl.className = revGrowth >= 0 ? "trend-up" : "trend-down";
+  }
 
-  document.getElementById("kpi-profit-val").innerText = formatCurrency(kpi_cards.net_profit.value);
-  document.getElementById("kpi-profit-margin").innerText = `Margin: ${kpi_cards.net_profit.margin}%`;
-  document.getElementById("kpi-profit-margin").className = kpi_cards.net_profit.value >= 0 ? "trend-up" : "trend-down";
+  const isProfitZero = !kpi_cards || !kpi_cards.net_profit || kpi_cards.net_profit.value === 0;
+  document.getElementById("kpi-profit-val").innerText = formatCurrency(kpi_cards ? kpi_cards.net_profit.value : 0, currentCurrency);
+  const profitMarginEl = document.getElementById("kpi-profit-margin");
+  if (isProfitZero && (!kpi_cards || kpi_cards.net_profit.margin === 0)) {
+    profitMarginEl.innerText = "Margin: 0%";
+    profitMarginEl.className = "trend-up";
+  } else {
+    profitMarginEl.innerText = `Margin: ${kpi_cards ? kpi_cards.net_profit.margin : 0}%`;
+    profitMarginEl.className = (kpi_cards && kpi_cards.net_profit.value >= 0) ? "trend-up" : "trend-down";
+  }
 
-  document.getElementById("kpi-exp-val").innerText = formatCurrency(kpi_cards.expenses.value);
-  document.getElementById("kpi-exp-growth").innerText = `${kpi_cards.expenses.growth >= 0 ? "↑" : "↓"} ${Math.abs(kpi_cards.expenses.growth)}%`;
+  const isExpZero = !kpi_cards || !kpi_cards.expenses || kpi_cards.expenses.value === 0;
+  document.getElementById("kpi-exp-val").innerText = formatCurrency(kpi_cards ? kpi_cards.expenses.value : 0, currentCurrency);
+  const expGrowthEl = document.getElementById("kpi-exp-growth");
+  if (isExpZero && (!kpi_cards || kpi_cards.expenses.growth === 0)) {
+    expGrowthEl.innerText = "0%";
+    expGrowthEl.className = "trend-up";
+  } else {
+    expGrowthEl.innerText = `${kpi_cards ? (kpi_cards.expenses.growth >= 0 ? "↑" : "↓") : "↑"} ${Math.abs(kpi_cards ? kpi_cards.expenses.growth : 0)}%`;
+    expGrowthEl.className = (kpi_cards && kpi_cards.expenses.growth <= 0) ? "trend-up" : "trend-down";
+  }
 
-  document.getElementById("kpi-cash-val").innerText = formatCurrency(kpi_cards.cash_balance.value);
+  const isCashZero = !kpi_cards || !kpi_cards.cash_balance || kpi_cards.cash_balance.value === 0;
+  document.getElementById("kpi-cash-val").innerText = formatCurrency(kpi_cards ? kpi_cards.cash_balance.value : 0, currentCurrency);
   const runwayEl = document.getElementById("kpi-cash-runway");
-  runwayEl.innerText = `Runway: ${kpi_cards.cash_balance.runway_days} days`;
-  runwayEl.className = kpi_cards.cash_balance.runway_days < 30 ? "trend-down" : "trend-up";
+  if (isCashZero && (!kpi_cards || kpi_cards.cash_balance.runway_days === 0)) {
+    runwayEl.innerText = "Runway: Awaiting Data";
+    runwayEl.className = "trend-up";
+  } else {
+    runwayEl.innerText = `Runway: ${kpi_cards ? kpi_cards.cash_balance.runway_days : 0} days`;
+    runwayEl.className = (kpi_cards && kpi_cards.cash_balance.runway_days < 30) ? "trend-down" : "trend-up";
+  }
 
   animateFiguresInContainer(document.getElementById("view-dashboard"));
 
@@ -368,6 +437,9 @@ function renderDashboard(data) {
   if (healthBadge) {
     if (briefing.business_health === "Profitable") {
       healthBadge.innerText = "● Business Health: Profitable";
+      healthBadge.className = "badge-status badge-healthy";
+    } else if (briefing.business_health === "Awaiting Data") {
+      healthBadge.innerText = "● Business Health: Awaiting Data";
       healthBadge.className = "badge-status badge-healthy";
     } else {
       healthBadge.innerText = "● Business Health: Runway Attention Required";
@@ -394,13 +466,14 @@ function renderDashboard(data) {
   }
 
   if (inventory.locked_capital > 0) {
+    const curr = (company && company.currency) || currentCurrency || "USD";
     alertsList.innerHTML += `
       <div class="alert-item">
         <div class="alert-icon" style="display:flex; align-items:center; justify-content:center;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
         </div>
         <div class="alert-content">
-          <div class="title">TZS ${inventory.locked_capital.toLocaleString()} locked in dead inventory</div>
+          <div class="title">${curr} ${inventory.locked_capital.toLocaleString()} locked in dead inventory</div>
           <div class="desc">No sales detected for these items in over 60 days.</div>
         </div>
       </div>
@@ -421,6 +494,20 @@ function renderDashboard(data) {
     `;
   }
 
+  if (!alertsList.innerHTML) {
+    alertsList.innerHTML = `
+      <div class="alert-item" style="border-left-color: #94a3b8; background: #f8fafc;">
+        <div class="alert-icon" style="display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        </div>
+        <div class="alert-content">
+          <div class="title" style="color: #475569;">No critical issues detected</div>
+          <div class="desc">Operations are clear. Upload spreadsheets to activate real-time operational alerts.</div>
+        </div>
+      </div>
+    `;
+  }
+
   // Update badges in sidebar
   document.getElementById("badge-inventory-warn").innerText = inventory.low_stock_count;
 
@@ -430,8 +517,8 @@ function renderDashboard(data) {
 }
 
 // -------------------------------------------------------------
-// ECHARTS RENDERING (Modern Graphics System)
-// -------------------------------------------------------------
+// This piece of code below deals with rendering interactive charts with Apache ECharts
+// The function below is for rendering the monthly revenue trend chart using Apache ECharts
 function renderRevenueTrendChart(trends) {
   const chartDom = document.getElementById("chart-rev-trend");
   if (!chartDom) return;
@@ -439,9 +526,10 @@ function renderRevenueTrendChart(trends) {
   if (revTrendChart) revTrendChart.dispose();
   revTrendChart = echarts.init(chartDom);
 
-  const periods = trends.map(t => t.period);
-  const revenues = trends.map(t => t.revenue);
-  const profits = trends.map(t => t.gross_profit);
+  const isEmpty = !trends || trends.length === 0;
+  const periods = isEmpty ? ["Month 1", "Month 2", "Month 3", "Month 4"] : trends.map(t => t.period);
+  const revenues = isEmpty ? [0, 0, 0, 0] : trends.map(t => t.revenue);
+  const profits = isEmpty ? [0, 0, 0, 0] : trends.map(t => t.gross_profit);
 
   const option = {
     tooltip: {
@@ -462,6 +550,9 @@ function renderRevenueTrendChart(trends) {
       },
       formatter: (params) => {
         let period = params[0] ? params[0].name : "";
+        if (isEmpty) {
+          return `<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">${period} · Awaiting Data</div><div style="font-size:0.82rem; color:#475569;">Upload sales records to generate historical revenue trends.</div>`;
+        }
         let html = `<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">${period} Financial Performance</div>`;
         params.forEach(item => {
           const color = item.color;
@@ -528,7 +619,12 @@ function renderRevenueTrendChart(trends) {
         color: "#94a3b8",
         fontSize: 11,
         fontWeight: 500,
-        formatter: (val) => `${(val / 1000000).toFixed(0)}M`,
+        formatter: (val) => {
+          if (val === 0) return "0";
+          if (Math.abs(val) >= 1000000) return `${(val / 1000000).toFixed(0)}M`;
+          if (Math.abs(val) >= 1000) return `${(val / 1000).toFixed(0)}K`;
+          return `${val}`;
+        },
       },
     },
     series: [
@@ -602,6 +698,7 @@ function renderRevenueTrendChart(trends) {
   revTrendChart.setOption(option);
 }
 
+// The function below is for fetching and rendering the operating expenses breakdown donut chart
 async function loadAndRenderExpenseDonut() {
   const chartDom = document.getElementById("chart-expense-donut");
   if (!chartDom) return;
@@ -615,12 +712,15 @@ async function loadAndRenderExpenseDonut() {
     if (expenseDonutChart) expenseDonutChart.dispose();
     expenseDonutChart = echarts.init(chartDom);
 
-    const chartData = categories.map(c => ({
+    const hasData = categories && categories.length > 0 && totalExp > 0;
+    const chartData = hasData ? categories.map(c => ({
       name: c.category,
       value: c.total_amount,
-    }));
+    })) : [
+      { name: "Awaiting Expenses", value: 1, itemStyle: { color: "#e2e8f0" } }
+    ];
 
-    const modernColors = [
+    const modernColors = hasData ? [
       "#3b82f6", // Royal Blue
       "#10b981", // Emerald
       "#8b5cf6", // Violet
@@ -631,14 +731,14 @@ async function loadAndRenderExpenseDonut() {
       "#6366f1", // Indigo
       "#14b8a6", // Teal
       "#64748b", // Slate
-    ];
+    ] : ["#e2e8f0"];
 
     const option = {
       baseOption: {
         color: modernColors,
         title: {
           text: formatCurrency(totalExp),
-          subtext: "TOTAL OPEX",
+          subtext: hasData ? "TOTAL OPEX" : "NO EXPENSES YET",
           left: "28%",
           top: "42%",
           textAlign: "center",
@@ -664,6 +764,9 @@ async function loadAndRenderExpenseDonut() {
           extraCssText: "box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03); backdrop-filter: blur(8px); border-radius: 10px;",
           textStyle: { color: "#0f172a", fontFamily: "Inter, system-ui, sans-serif" },
           formatter: (params) => {
+            if (!hasData) {
+              return '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">Operating Expenses</div><div style="font-size:0.82rem; color:#475569;">No expenses recorded yet.</div>';
+            }
             const val = Number(params.value || 0);
             return `
               <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Expense Cost Center</div>
@@ -683,6 +786,7 @@ async function loadAndRenderExpenseDonut() {
           },
         },
         legend: {
+          show: hasData,
           type: "scroll",
           orient: "vertical",
           left: "52%",
@@ -799,44 +903,45 @@ async function loadAndRenderExpenseDonut() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 03: ANALYTICS (P&L)
-// -------------------------------------------------------------
+// This piece of code below deals with financial analytics, P&L waterfall bridge, and profit margins
+// The function below is for loading deep financial analytics, P&L statements, and profit margins
 async function loadAnalyticsData() {
   try {
     const res = await fetch(`${API_BASE}/api/analytics?company_id=${currentCompanyId}`);
     const data = await res.json();
     const pnl = data.pnl;
+    const curr = currentCurrency || "TZS";
 
     const tbody = document.getElementById("pnl-table-body");
     tbody.innerHTML = `
       <tr>
         <td><strong>Gross Sales Revenue</strong></td>
-        <td>TZS ${pnl.revenue.toLocaleString()}</td>
+        <td>${curr} ${pnl.revenue.toLocaleString()}</td>
         <td>100.0%</td>
         <td><span class="badge-status badge-healthy">Top-Line</span></td>
       </tr>
       <tr>
         <td>Cost of Goods Sold (COGS)</td>
-        <td>TZS ${pnl.cogs.toLocaleString()}</td>
+        <td>${curr} ${pnl.cogs.toLocaleString()}</td>
         <td>${pnl.revenue > 0 ? ((pnl.cogs / pnl.revenue) * 100).toFixed(1) : 0}%</td>
         <td>Direct Costs</td>
       </tr>
       <tr style="background:#f8fafc; font-weight:600;">
         <td><strong>Gross Profit</strong></td>
-        <td><strong>TZS ${pnl.gross_profit.toLocaleString()}</strong></td>
+        <td><strong>${curr} ${pnl.gross_profit.toLocaleString()}</strong></td>
         <td><strong>${pnl.gross_margin_pct}%</strong></td>
         <td><span class="badge-status badge-healthy">Margin Bridge</span></td>
       </tr>
       <tr>
         <td>Operating Expenses (OPEX)</td>
-        <td>TZS ${pnl.operating_expenses.toLocaleString()}</td>
+        <td>${curr} ${pnl.operating_expenses.toLocaleString()}</td>
         <td>${pnl.revenue > 0 ? ((pnl.operating_expenses / pnl.revenue) * 100).toFixed(1) : 0}%</td>
         <td>Overhead</td>
       </tr>
       <tr style="background:#f1f5f9; font-weight:700;">
         <td><strong>Net Profit (EBITDA)</strong></td>
         <td style="color:${pnl.net_profit >= 0 ? '#10b981' : '#ef4444'};">
-          <strong>TZS ${pnl.net_profit.toLocaleString()}</strong>
+          <strong>${curr} ${pnl.net_profit.toLocaleString()}</strong>
         </td>
         <td><strong>${pnl.net_margin_pct}%</strong></td>
         <td><span class="badge-status ${pnl.net_profit >= 0 ? 'badge-paid' : 'badge-danger'}">${pnl.net_profit >= 0 ? 'Profitable' : 'Loss'}</span></td>
@@ -849,6 +954,7 @@ async function loadAnalyticsData() {
   }
 }
 
+// The function below is for rendering the P&L waterfall bridge chart showing net profit drivers
 function renderPnlBridgeChart(pnl) {
   const chartDom = document.getElementById("chart-pnl-bridge");
   if (!chartDom) return;
@@ -894,7 +1000,7 @@ function renderPnlBridgeChart(pnl) {
           </div>
           <div style="display:flex; justify-content:space-between; gap:1.2rem; font-size:0.85rem;">
             <span style="color:#64748b;">Amount:</span>
-            <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">TZS ${val.toLocaleString()}</strong>
+            <strong style="color:#0f172a; font-variant-numeric:tabular-nums;">${formatCurrency(val)}</strong>
           </div>
         `;
       },
@@ -959,23 +1065,28 @@ function renderPnlBridgeChart(pnl) {
 }
 
 // -------------------------------------------------------------
-// SCREEN 04: SALES
-// -------------------------------------------------------------
+// This piece of code below deals with sales transactions, revenue performance, and sales data tables
+// The function below is for loading sales transactions and populating the sales operations data table
 async function loadSalesData() {
   try {
     const res = await fetch(`${API_BASE}/api/sales?company_id=${currentCompanyId}&limit=50`);
     const data = await res.json();
     const sales = data.sales || [];
+    const curr = currentCurrency || "USD";
 
     const tbody = document.getElementById("sales-table-body");
+    if (sales.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">No sales records found. Upload an Excel or Google Sheets file to view sales transactions.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = sales.map(s => `
       <tr>
         <td><strong>${s.invoice_number}</strong></td>
         <td>${s.customer_name || 'Walk-in'}</td>
         <td>${s.sale_date}</td>
-        <td>TZS ${s.total.toLocaleString()}</td>
-        <td>TZS ${s.cost_of_goods.toLocaleString()}</td>
-        <td style="color:${s.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">TZS ${s.profit.toLocaleString()}</td>
+        <td>${curr} ${s.total.toLocaleString()}</td>
+        <td>${curr} ${s.cost_of_goods.toLocaleString()}</td>
+        <td style="color:${s.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">${curr} ${s.profit.toLocaleString()}</td>
         <td><span class="badge-status ${s.payment_status === 'Paid' ? 'badge-paid' : 'badge-warning'}">${s.payment_status}</span></td>
       </tr>
     `).join("");
@@ -985,22 +1096,27 @@ async function loadSalesData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 05: CUSTOMERS
-// -------------------------------------------------------------
+// This piece of code below deals with customer analytics, lifetime value, and customer profitability
+// The function below is for loading customer accounts, lifetime values, and profitability rankings
 async function loadCustomersData() {
   try {
     const res = await fetch(`${API_BASE}/api/customers?company_id=${currentCompanyId}`);
     const data = await res.json();
     const customers = data.top_customers || [];
+    const curr = currentCurrency || "USD";
 
     const tbody = document.getElementById("customers-table-body");
+    if (customers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#64748b; padding:2rem;">No customer records found. Upload an Excel or Google Sheets file to analyze customer unit economics.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = customers.map(c => `
       <tr>
         <td><strong>${c.customer_name}</strong></td>
         <td>${c.customer_type || 'Retail'}</td>
         <td>${c.total_orders}</td>
-        <td>TZS ${c.total_revenue.toLocaleString()}</td>
-        <td>TZS ${c.net_profit.toLocaleString()}</td>
+        <td>${curr} ${c.total_revenue.toLocaleString()}</td>
+        <td>${curr} ${c.net_profit.toLocaleString()}</td>
         <td style="font-weight:600; color:${c.margin_pct >= 25 ? '#10b981' : '#f59e0b'};">${c.margin_pct}%</td>
         <td>
           <span class="badge-status ${c.margin_pct >= 25 ? 'badge-healthy' : 'badge-low'}">
@@ -1015,22 +1131,27 @@ async function loadCustomersData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 06: INVENTORY
-// -------------------------------------------------------------
+// This piece of code below deals with inventory valuation, stockout alerts, and stock movements
+// The function below is for loading inventory items, stock levels, valuations, and stockout warnings
 async function loadInventoryData() {
   try {
     const res = await fetch(`${API_BASE}/api/inventory?company_id=${currentCompanyId}`);
     const data = await res.json();
-    const summary = data.summary;
+    const summary = data.summary || {};
     const products = data.products || [];
+    const curr = currentCurrency || "USD";
 
-    document.getElementById("inv-total-val").innerText = `TZS ${summary.total_inventory_value.toLocaleString()}`;
-    document.getElementById("inv-low-count").innerText = summary.low_stock_count;
-    document.getElementById("inv-dead-val").innerText = `TZS ${summary.locked_capital_slow_moving.toLocaleString()}`;
+    document.getElementById("inv-total-val").innerText = `${curr} ${(summary.total_inventory_value || 0).toLocaleString()}`;
+    document.getElementById("inv-low-count").innerText = summary.low_stock_count || 0;
+    document.getElementById("inv-dead-val").innerText = `${curr} ${(summary.locked_capital_slow_moving || 0).toLocaleString()}`;
 
     animateFiguresInContainer(document.getElementById("view-inventory"));
 
     const tbody = document.getElementById("inventory-table-body");
+    if (products.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#64748b; padding:2rem;">No inventory products found. Upload an inventory spreadsheet to track stock levels.</td></tr>`;
+      return;
+    }
     tbody.innerHTML = products.map(p => {
       const isLow = p.stock_on_hand <= p.reorder_level;
       const isOut = p.stock_on_hand <= 0;
@@ -1050,9 +1171,9 @@ async function loadInventoryData() {
           <td>${p.name}</td>
           <td style="font-weight:600;">${p.stock_on_hand}</td>
           <td>${p.reorder_level}</td>
-          <td>TZS ${p.cost_price.toLocaleString()}</td>
-          <td>TZS ${p.selling_price.toLocaleString()}</td>
-          <td>TZS ${p.stock_value.toLocaleString()}</td>
+          <td>${curr} ${p.cost_price.toLocaleString()}</td>
+          <td>${curr} ${p.selling_price.toLocaleString()}</td>
+          <td>${curr} ${p.stock_value.toLocaleString()}</td>
           <td><span class="badge-status ${statusClass}">${statusLabel}</span></td>
         </tr>
       `;
@@ -1063,8 +1184,8 @@ async function loadInventoryData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 07: EXPENSES
-// -------------------------------------------------------------
+// This piece of code below deals with business expenses and operating expenditure breakdowns
+// The function below is for loading business expense records and categorizing operational spend
 async function loadExpensesData() {
   try {
     const res = await fetch(`${API_BASE}/api/expenses?company_id=${currentCompanyId}`);
@@ -1072,6 +1193,7 @@ async function loadExpensesData() {
     const summary = data.summary || {};
     const categories = summary.categories || [];
     const expenses = data.expenses || [];
+    const curr = currentCurrency || "TZS";
 
     // 1. KPI Summary Cards
     const totalExpVal = document.getElementById("exp-total-val");
@@ -1087,7 +1209,7 @@ async function loadExpensesData() {
     const expTopShare = document.getElementById("exp-top-share");
     if (expTopShare) {
       expTopShare.innerText = topCat
-        ? `${topCat.percentage}% of OPEX (TZS ${Number(topCat.total_amount).toLocaleString()})`
+        ? `${topCat.percentage}% of OPEX (${curr} ${Number(topCat.total_amount).toLocaleString()})`
         : "No categories recorded";
     }
 
@@ -1110,7 +1232,7 @@ async function loadExpensesData() {
             <td><strong>${c.category}</strong></td>
             <td><span class="badge-status badge-healthy" style="background:#f1f5f9; color:#475569; font-weight:600;">${c.category_type}</span></td>
             <td><span class="badge-count">Σ ${c.transaction_count || 1} entries auto-summed</span></td>
-            <td style="font-weight:700;">TZS ${Number(c.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="font-weight:700;">${curr} ${Number(c.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td>
               <div style="display:flex; align-items:center;">
                 <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(100, c.percentage)}%;"></div></div>
@@ -1133,7 +1255,7 @@ async function loadExpensesData() {
             <td>${e.expense_date}</td>
             <td><strong>${e.category_name}</strong></td>
             <td>${e.description || "-"}</td>
-            <td style="font-weight:600;">TZS ${Number(e.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="font-weight:600;">${curr} ${Number(e.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td>${e.payment_method || "BANK"}</td>
             <td><span class="badge-status badge-paid">${e.status || "PAID"}</span></td>
           </tr>
@@ -1146,8 +1268,8 @@ async function loadExpensesData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 08: CASH FLOW
-// -------------------------------------------------------------
+// This piece of code below deals with cash flow forecasting, liquidity metrics, and runway tracking
+// The function below is for loading cash flow forecasts, operational runway, and liquidity projections
 async function loadCashFlowData() {
   try {
     const res = await fetch(`${API_BASE}/api/cashflow?company_id=${currentCompanyId}`);
@@ -1159,7 +1281,7 @@ async function loadCashFlowData() {
     document.getElementById("cash-ar-val").innerText = formatCurrency(cash.accounts_receivable);
     document.getElementById("cash-unpaid-invoices").innerText = `${cash.unpaid_invoices_count} unpaid customer invoices`;
     document.getElementById("cash-burn-val").innerText = formatCurrency(cash.monthly_burn_rate);
-    document.getElementById("cash-runway-countdown").innerText = `Runway: ${cash.runway_days} days`;
+    document.getElementById("cash-runway-countdown").innerText = cash.monthly_burn_rate > 0 ? `Runway: ${cash.runway_days} days` : "Runway: Awaiting Data";
 
     animateFiguresInContainer(document.getElementById("view-cashflow"));
 
@@ -1270,7 +1392,7 @@ async function loadCashFlowData() {
                 label: {
                   show: true,
                   position: "insideEndTop",
-                  formatter: "Zero Balance Baseline (TZS 0)",
+                  formatter: `Zero Balance Baseline (${formatCurrency(0)})`,
                   color: "#ef4444",
                   fontSize: 10.5,
                   fontWeight: 600,
@@ -1298,8 +1420,8 @@ async function loadCashFlowData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 10: AI ANALYST
-// -------------------------------------------------------------
+// This piece of code below deals with the grounded AI Business Analyst interface and queries
+// The function below is for setting up AI Business Analyst query input listeners and prompt suggestions
 function setupAISearch() {
   const btn = document.getElementById("btn-submit-ai");
   const input = document.getElementById("ai-query-input");
@@ -1319,6 +1441,7 @@ function setupAISearch() {
 
 let currentAiThinkingInterval = null;
 
+// The function below is for tokenizing HTML into words and tags for smooth AI streaming output
 function tokenizeHtmlForStreaming(html) {
   const tokens = [];
   let i = 0;
@@ -1349,6 +1472,7 @@ function tokenizeHtmlForStreaming(html) {
   return tokens;
 }
 
+// The function below is for streaming formatted AI responses word-by-word into the message container
 async function streamHtmlWords(html, targetEl) {
   if (!targetEl) return;
   targetEl.innerHTML = "";
@@ -1368,6 +1492,7 @@ async function streamHtmlWords(html, targetEl) {
   }
 }
 
+// The function below is for toggling the visibility of Gemini AI model reasoning steps
 function toggleGeminiThoughts(header) {
   const body = header.nextElementSibling;
   const arrow = header.querySelector("#gemini-accordion-arrow");
@@ -1381,6 +1506,7 @@ function toggleGeminiThoughts(header) {
   }
 }
 
+// The function below is for copying the AI analyst response text to the user's clipboard
 function copyGeminiAnswer() {
   const text = window._latestGeminiAnswerText || "";
   if (!text) return;
@@ -1396,12 +1522,14 @@ function copyGeminiAnswer() {
   });
 }
 
+// The function below is for handling user rating feedback on AI analyst answers
 function rateGeminiFeedback(btn, type) {
   const siblings = btn.parentElement.querySelectorAll(".gemini-tool-btn");
   siblings.forEach(s => s.classList.remove("active"));
   btn.classList.add("active");
 }
 
+// The function below is for sending user business questions to the grounded AI Business Analyst API
 async function askAI(question) {
   const box = document.getElementById("ai-answer-box");
   const input = document.getElementById("ai-query-input");
@@ -1618,6 +1746,7 @@ async function askAI(question) {
 // -------------------------------------------------------------
 let forecastChartInstance = null;
 
+// The function below is for fetching predictive revenue projections and stockout forecasts
 async function loadForecastsData() {
   try {
     const res = await fetch(`${API_BASE}/api/forecasts?company_id=${currentCompanyId}`);
@@ -1668,6 +1797,7 @@ async function loadForecastsData() {
   }
 }
 
+// The function below is for rendering the predictive forecast trend chart with confidence bands
 function renderForecastChart(revFc) {
   const chartDom = document.getElementById("chart-forecast-bands");
   if (!chartDom) return;
@@ -1675,17 +1805,23 @@ function renderForecastChart(revFc) {
   if (forecastChartInstance) forecastChartInstance.dispose();
   forecastChartInstance = echarts.init(chartDom);
 
-  const histPeriods = revFc.historical.map(h => h.month);
-  const histRevs = revFc.historical.map(h => h.revenue);
+  const historical = (revFc && revFc.historical) || [];
+  const forecastPoints = (revFc && revFc.forecast_points) || [];
 
-  const fcPeriods = revFc.forecast_points.map(p => p.period);
-  const fcPreds = revFc.forecast_points.map(p => p.predicted_revenue);
-  const fcLowers = revFc.forecast_points.map(p => p.lower_bound);
-  const fcUppers = revFc.forecast_points.map(p => p.upper_bound);
+  const histPeriods = historical.map(h => h.month);
+  const histRevs = historical.map(h => h.revenue);
+
+  const fcPeriods = forecastPoints.map(p => p.period);
+  const fcPreds = forecastPoints.map(p => p.predicted_revenue);
+  const fcLowers = forecastPoints.map(p => p.lower_bound);
+  const fcUppers = forecastPoints.map(p => p.upper_bound);
 
   const allPeriods = [...histPeriods, ...fcPeriods];
-  const histSeriesData = [...histRevs, ...fcPeriods.map(() => null)];
-  const predSeriesData = [...histPeriods.map((_, i) => i === histPeriods.length - 1 ? histRevs[i] : null), ...fcPreds];
+  if (allPeriods.length === 0) {
+    allPeriods.push("Month +1", "Month +2", "Month +3");
+  }
+  const histSeriesData = histPeriods.length > 0 ? [...histRevs, ...fcPeriods.map(() => null)] : [0, 0, 0];
+  const predSeriesData = fcPeriods.length > 0 ? [...histPeriods.map((_, i) => i === histPeriods.length - 1 ? histRevs[i] : null), ...fcPreds] : [0, 0, 0];
   const lowerSeriesData = [...histPeriods.map(() => null), ...fcLowers];
   const upperSeriesData = [...histPeriods.map(() => null), ...fcUppers];
 
@@ -1867,8 +2003,8 @@ function renderForecastChart(revFc) {
 }
 
 // -------------------------------------------------------------
-// SCREEN 11: ALERTS CENTER
-// -------------------------------------------------------------
+// This piece of code below deals with early warning risk alerts and anomaly notifications
+// The function below is for loading early warning business alerts and risk notifications
 async function loadAlertsData(severity = "ALL") {
   try {
     const res = await fetch(`${API_BASE}/api/alerts?company_id=${currentCompanyId}&severity=${severity}`);
@@ -1913,10 +2049,12 @@ async function loadAlertsData(severity = "ALL") {
   }
 }
 
+// The function below is for filtering active alerts by severity level
 function filterAlerts(severity) {
   loadAlertsData(severity);
 }
 
+// The function below is for configuring executive management report generation options
 function loadReportsData() {
   const compId = currentCompanyId || "company-abc-supermarket-001";
   const pdfLink = document.getElementById("report-pdf-link");
@@ -1930,8 +2068,8 @@ function loadReportsData() {
 }
 
 // -------------------------------------------------------------
-// SCREENS 13, 14, 15: UPLOAD & DATA MAPPING
-// -------------------------------------------------------------
+// This piece of code below deals with spreadsheet upload drag-and-drop zones and schema mapping review
+// The function below is for configuring drag-and-drop spreadsheet upload zones
 function setupUploadDropzone() {
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
@@ -1973,6 +2111,7 @@ function setupUploadDropzone() {
   }
 }
 
+// The function below is for uploading spreadsheet files to the backend ingestion pipeline
 function handleFileUpload(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -2003,10 +2142,117 @@ function handleFileUpload(file) {
   reader.readAsDataURL(file);
 }
 
+let currentUploadCurrencyInfo = null;
+
+// The function below is for displaying floating toast notification messages to the user
+function showToastNotification(message, title = "Currency Converted & Mapped", type = "info", duration = 8500) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast-notification toast-${type}`;
+
+  const icon = type === "success" ? "✓" : (type === "warning" ? "⚠️" : "💱");
+
+  toast.innerHTML = `
+    <div class="toast-icon">${icon}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <button class="toast-close" title="Dismiss">&times;</button>
+  `;
+
+  const closeBtn = toast.querySelector(".toast-close");
+  const dismiss = () => {
+    toast.classList.remove("toast-visible");
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 400);
+  };
+
+  closeBtn.addEventListener("click", dismiss);
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("toast-visible");
+  });
+
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+}
+
+// The function below is for rendering the spreadsheet column mapping review dialog
 function renderMappingReview(uploadResult) {
   const mappingCard = document.getElementById("mapping-card");
   const tbody = document.getElementById("mapping-table-body");
   mappingCard.style.display = "block";
+
+  currentUploadCurrencyInfo = uploadResult.currency_conversion || null;
+  const banner = document.getElementById("currency-conversion-banner");
+  if (banner && currentUploadCurrencyInfo) {
+    banner.style.display = "block";
+    const titleEl = document.getElementById("currency-conversion-title");
+    const descEl = document.getElementById("currency-conversion-desc");
+    const iconEl = document.getElementById("currency-conversion-icon");
+    const inputContainer = document.getElementById("currency-rate-input-container");
+    const rateInput = document.getElementById("currency-exchange-rate-input");
+    const rateLabel = document.getElementById("currency-rate-label");
+    const rateUnit = document.getElementById("currency-rate-unit");
+
+    const src = currentUploadCurrencyInfo.source_currency || "USD";
+    const tgt = currentUploadCurrencyInfo.target_currency || currentCurrency || "TZS";
+    const rate = currentUploadCurrencyInfo.exchange_rate || 1.0;
+    const tgtName = currentUploadCurrencyInfo.target_display_name || (tgt === "TZS" ? "TZS Shillings" : tgt);
+
+    if (currentUploadCurrencyInfo.conversion_needed) {
+      const notifMsg = currentUploadCurrencyInfo.notification_message ||
+        `The file you uploaded had currencies different from ${tgtName}. We have converted the currencies to ${tgtName} and mapped the data.`;
+
+      // Trigger user-requested short notification toast
+      showToastNotification(notifMsg, "Currency Converted & Mapped", "info", 9000);
+
+      banner.style.background = "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)";
+      banner.style.borderColor = "#93c5fd";
+      if (iconEl) iconEl.innerText = "💱";
+      
+      const liveBadge = currentUploadCurrencyInfo.is_live_rate 
+        ? `<span style="font-size:0.7rem; font-weight:600; background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:4px; margin-left:6px;">🟢 Live Online Rate</span>`
+        : `<span style="font-size:0.7rem; font-weight:600; background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:4px; margin-left:6px;">Market Benchmark</span>`;
+
+      if (titleEl) {
+        titleEl.innerHTML = `Auto-Converting Currency <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${src} ➔ ${tgt}</span> ${liveBadge}`;
+      }
+      if (descEl) {
+        descEl.innerHTML = `
+          <div style="font-weight:600; color:#1e3a8a; margin-bottom:3px;">${notifMsg}</div>
+          <div style="font-size:0.78rem; color:#64748b;">Live transfer rate: 1 ${src} ≈ ${rate >= 1 ? rate.toLocaleString(undefined, {maximumFractionDigits: 2}) : rate.toFixed(6)} ${tgt} (${currentUploadCurrencyInfo.rate_source || "Online Transfer Rate"}).</div>
+        `;
+      }
+      if (inputContainer) inputContainer.style.display = "flex";
+      if (rateLabel) rateLabel.innerText = `Live Rate (1 ${src} =):`;
+      if (rateUnit) rateUnit.innerText = tgt;
+      if (rateInput) rateInput.value = rate;
+    } else {
+      banner.style.background = "#f0fdf4";
+      banner.style.borderColor = "#86efac";
+      if (iconEl) iconEl.innerText = "✓";
+      if (titleEl) {
+        titleEl.innerHTML = `Currency Matched <span class="badge-status badge-healthy" style="font-size:0.75rem; padding:2px 8px; font-weight:700;">${tgt} (100% Match)</span>`;
+      }
+      if (descEl) {
+        descEl.innerHTML = `Spreadsheet amounts match your business currency (<strong>${tgtName}</strong>). No conversion needed.`;
+      }
+      if (inputContainer) inputContainer.style.display = "none";
+    }
+  } else if (banner) {
+    banner.style.display = "none";
+  }
 
   const mappings = uploadResult.mappings || {};
   let rowsHtml = "";
@@ -2031,6 +2277,7 @@ function renderMappingReview(uploadResult) {
   document.getElementById("progress-status-text").innerText = `Detected ${uploadResult.inspection.sheet_count} sheet(s). Ready to import.`;
 }
 
+// The function below is for confirming schema mappings and executing final data import
 async function confirmImport() {
   if (!activeUploadedFilePath) return;
 
@@ -2045,21 +2292,51 @@ async function confirmImport() {
     pText.innerText = "Calculating deterministic metrics...";
 
     try {
+      const rateInput = document.getElementById("currency-exchange-rate-input");
+      let customRate = null;
+      if (rateInput && rateInput.value && currentUploadCurrencyInfo && currentUploadCurrencyInfo.conversion_needed) {
+        const parsed = parseFloat(rateInput.value);
+        if (!isNaN(parsed) && parsed > 0) {
+          customRate = parsed;
+        }
+      }
+
+      const payload = {
+        file_path: activeUploadedFilePath,
+        company_id: currentCompanyId,
+      };
+      if (customRate !== null) {
+        payload.exchange_rate = customRate;
+      }
+      if (currentUploadCurrencyInfo && currentUploadCurrencyInfo.source_currency) {
+        payload.source_currency = currentUploadCurrencyInfo.source_currency;
+      }
+
       const res = await fetch(`${API_BASE}/api/confirm-import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file_path: activeUploadedFilePath,
-          company_id: currentCompanyId,
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
 
       pBar.style.width = "100%";
-      pText.innerText = `Import Complete! ${result.result.total_rows_imported} rows imported.`;
+      const convNotice = result.result && result.result.currency_conversion && result.result.currency_conversion.converted
+        ? ` (Auto-converted from ${result.result.currency_conversion.source_currency} to ${result.result.currency_conversion.target_currency})`
+        : "";
+      pText.innerText = `Import Complete! ${result.result.total_rows_imported} rows imported.${convNotice}`;
+
+      // Show completion toast notification
+      if (result.result && result.result.currency_conversion && result.result.currency_conversion.converted) {
+        const notif = result.result.currency_conversion.notification_message ||
+          `The file you uploaded had currencies different from ${result.result.currency_conversion.target_display_name || 'your registered currency'}. We have converted the currencies and mapped the data.`;
+        showToastNotification(notif, "Import & Mapping Complete", "success", 8000);
+      }
 
       setTimeout(() => {
         document.getElementById("mapping-card").style.display = "none";
+        const banner = document.getElementById("currency-conversion-banner");
+        if (banner) banner.style.display = "none";
+        currentUploadCurrencyInfo = null;
         loadDataSourcesList();
         switchView("dashboard");
         loadAllDashboardData();
@@ -2071,8 +2348,8 @@ async function confirmImport() {
 }
 
 // -------------------------------------------------------------
-// DATA SOURCES & SPREADSHEET MANAGER
-// -------------------------------------------------------------
+// This piece of code below deals with connected data sources, files, and import job history
+// The function below is for loading connected spreadsheets, data sources, and import job history
 async function loadDataSourcesList() {
   const countBadge = document.getElementById("uploaded-files-count");
   const emptyBox = document.getElementById("uploaded-sources-empty");
@@ -2146,8 +2423,8 @@ async function loadDataSourcesList() {
 }
 
 // -------------------------------------------------------------
-// 1-CLICK DEMO LOADER
-// -------------------------------------------------------------
+// This piece of code below deals with demo data loading for interactive exploration
+// The function below is for configuring the demo data exploration button for new users
 function setupDemoButton() {
   const btn = document.getElementById("btn-quick-sample");
   if (btn) {
@@ -2190,31 +2467,104 @@ function setupDemoButton() {
 }
 
 // -------------------------------------------------------------
-// WORKSPACE & REGISTRATION MANAGEMENT
-// -------------------------------------------------------------
+// This piece of code below deals with workspace registration, user session state, and onboarding modal
+// The function below is for clearing local storage session data and resetting the workspace state
+function clearLocalSession() {
+  document.documentElement.classList.remove("has-workspace");
+  currentCompanyId = "";
+  currentCurrency = "TZS";
+  currentUserName = "Business Owner";
+  currentCompanyName = "My Business";
+  localStorage.removeItem("business_pilot_company_id");
+  localStorage.removeItem("business_pilot_currency");
+  localStorage.removeItem("business_pilot_company_name");
+  localStorage.removeItem("business_pilot_user_name");
+  localStorage.removeItem("bizlens_company_id");
+  localStorage.removeItem("bizlens_currency");
+  localStorage.removeItem("bizlens_company_name");
+  localStorage.removeItem("bizlens_user_name");
+
+  const headerUserName = document.getElementById("header-user-name");
+  if (headerUserName) headerUserName.innerText = "User";
+
+  const headerUserAvatar = document.getElementById("header-user-avatar");
+  if (headerUserAvatar) {
+    headerUserAvatar.style.backgroundImage = "none";
+    headerUserAvatar.innerText = "U";
+  }
+
+  const sidebarCompAvatar = document.getElementById("sidebar-company-avatar");
+  if (sidebarCompAvatar) sidebarCompAvatar.innerText = "B";
+
+  const sidebarCompName = document.getElementById("sidebar-company-name");
+  if (sidebarCompName) sidebarCompName.innerText = "My Business";
+
+  const sidebarCompSub = document.getElementById("sidebar-company-sub");
+  if (sidebarCompSub) sidebarCompSub.innerText = "Workspace · TZS";
+
+  const dashGreeting = document.getElementById("dash-greeting");
+  if (dashGreeting) dashGreeting.innerText = "Good morning";
+}
+
+// The function below is for validating the user session and directing unregistered users to registration
 async function checkAuthSession() {
   try {
-    const res = await fetch(`${API_BASE}/api/auth/session?company_id=${currentCompanyId}`);
+    if (!currentCompanyId || !currentCompanyId.trim()) {
+      clearLocalSession();
+      openRegistrationModal(false);
+      return;
+    }
+
+    const queryParams = new URLSearchParams({
+      company_id: currentCompanyId,
+      company_name: currentCompanyName,
+      currency: currentCurrency,
+      user_name: currentUserName,
+      business_type: currentBusinessType,
+    });
+
+    const res = await fetch(`${API_BASE}/api/auth/session?${queryParams.toString()}`);
     const data = await res.json();
     if (data.authenticated && data.company) {
       applyCompanySession(data.company, data.user);
+      closeRegistrationModal();
       loadAllDashboardData();
     } else {
-      // No active workspace exists -> open registration modal
-      openRegistrationModal(false);
+      // Retain active local registration so page refresh never drops user back to modal
+      applyCompanySession({
+        id: currentCompanyId,
+        name: currentCompanyName,
+        currency: currentCurrency,
+        business_type: currentBusinessType,
+      }, { name: currentUserName });
+      closeRegistrationModal();
+      loadAllDashboardData();
     }
   } catch (err) {
-    console.error("Auth check failed:", err);
-    openRegistrationModal(false);
+    console.warn("Auth check network notice; maintaining registered workspace:", err);
+    if (currentCompanyId && currentCompanyId.trim()) {
+      applyCompanySession({
+        id: currentCompanyId,
+        name: currentCompanyName,
+        currency: currentCurrency,
+        business_type: currentBusinessType,
+      }, { name: currentUserName });
+      closeRegistrationModal();
+      loadAllDashboardData();
+    } else {
+      clearLocalSession();
+      openRegistrationModal(false);
+    }
   }
 }
 
+// The function below is for applying active business workspace details and currency to the session
 function applyCompanySession(comp, user) {
   if (!comp) return;
   currentCompanyId = comp.id;
-  currentCurrency = comp.currency || "USD";
-  currentCompanyName = comp.name;
-  currentUserName = (user && user.name) ? user.name : "Business Owner";
+  currentCurrency = comp.currency || currentCurrency || "TZS";
+  currentCompanyName = comp.name || currentCompanyName || "My Business";
+  currentUserName = (user && user.name) ? user.name : (currentUserName || "Business Owner");
 
   localStorage.setItem("business_pilot_company_id", currentCompanyId);
   localStorage.setItem("business_pilot_currency", currentCurrency);
@@ -2224,6 +2574,34 @@ function applyCompanySession(comp, user) {
   localStorage.setItem("bizlens_currency", currentCurrency);
   localStorage.setItem("bizlens_company_name", currentCompanyName);
   localStorage.setItem("bizlens_user_name", currentUserName);
+
+  // Prevent registration modal from popping up on page refresh
+  document.documentElement.classList.add("has-workspace");
+
+  // Update table header currency labels
+  document.querySelectorAll(".currency-label").forEach(el => {
+    el.innerText = currentCurrency;
+  });
+  const pnlCurrLabel = document.getElementById("pnl-currency-label");
+  if (pnlCurrLabel) pnlCurrLabel.innerText = currentCurrency;
+
+  // Immediately update KPI cards with the selected currency (avoid hardcoded $0)
+  const revEl = document.getElementById("kpi-rev-val");
+  const profitEl = document.getElementById("kpi-profit-val");
+  const expEl = document.getElementById("kpi-exp-val");
+  const cashEl = document.getElementById("kpi-cash-val");
+  if (revEl && (!revEl.innerText || revEl.innerText === "0" || revEl.innerText.includes("$"))) {
+    revEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (profitEl && (!profitEl.innerText || profitEl.innerText === "0" || profitEl.innerText.includes("$"))) {
+    profitEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (expEl && (!expEl.innerText || expEl.innerText === "0" || expEl.innerText.includes("$"))) {
+    expEl.innerText = formatCurrency(0, currentCurrency);
+  }
+  if (cashEl && (!cashEl.innerText || cashEl.innerText === "0" || cashEl.innerText.includes("$"))) {
+    cashEl.innerText = formatCurrency(0, currentCurrency);
+  }
 
   // Update Greeting & Badges
   const dashGreeting = document.getElementById("dash-greeting");
@@ -2251,18 +2629,19 @@ function applyCompanySession(comp, user) {
   if (sidebarCompName) sidebarCompName.innerText = currentCompanyName;
 
   const sidebarCompSub = document.getElementById("sidebar-company-sub");
-  if (sidebarCompSub) sidebarCompSub.innerText = `${comp.business_type || "Business"} · ${currentCurrency}`;
+  if (sidebarCompSub) sidebarCompSub.innerText = `${comp.business_type || currentBusinessType || "Business"} · ${currentCurrency}`;
 
   const onboardingTitle = document.getElementById("onboarding-comp-title");
   if (onboardingTitle) onboardingTitle.innerText = `${currentCompanyName} Workspace Ready`;
 
-  currentBusinessType = comp.business_type || "Other";
+  currentBusinessType = comp.business_type || currentBusinessType || "Retail";
   localStorage.setItem("business_pilot_business_type", currentBusinessType);
   applyIndustryCustomizations(currentBusinessType);
 
   loadReportsData();
 }
 
+// The function below is for applying industry-tailored terminology, KPIs, and layouts
 function applyIndustryCustomizations(businessType) {
   const isRetail = (businessType || "").toLowerCase().includes("retail") || businessType === "Supermarket";
 
@@ -2297,6 +2676,7 @@ function applyIndustryCustomizations(businessType) {
   }
 }
 
+// The function below is for initializing industry preview cards in the registration modal
 function setupIndustryPreview() {
   const bTypeSelect = document.getElementById("reg-business-type");
   const previewTitle = document.getElementById("preview-industry-title");
@@ -2340,6 +2720,7 @@ function setupIndustryPreview() {
     }
   };
 
+  // The function below is for updating industry preview features when selecting a business type
   function updatePreview() {
     const val = bTypeSelect.value || "Retail";
     const profile = industryProfiles[val] || industryProfiles["Other"];
@@ -2354,20 +2735,29 @@ function setupIndustryPreview() {
   updatePreview();
 }
 
+// The function below is for opening the business registration and onboarding modal
 function openRegistrationModal(canCancel = true) {
   const modal = document.getElementById("registration-modal");
   const cancelBtn = document.getElementById("btn-close-modal");
   if (cancelBtn) {
     cancelBtn.style.display = canCancel ? "inline-block" : "none";
   }
-  if (modal) modal.style.display = "flex";
+  if (modal) {
+    modal.classList.add("force-open");
+    modal.style.display = "flex";
+  }
 }
 
+// The function below is for closing the business registration and onboarding modal
 function closeRegistrationModal() {
   const modal = document.getElementById("registration-modal");
-  if (modal) modal.style.display = "none";
+  if (modal) {
+    modal.classList.remove("force-open");
+    modal.style.display = "none";
+  }
 }
 
+// The function below is for submitting the registration form to create a new business workspace
 async function handleRegistrationSubmit(e) {
   e.preventDefault();
   const compName = document.getElementById("reg-company-name").value.trim();
@@ -2418,10 +2808,11 @@ async function handleRegistrationSubmit(e) {
       applyCompanySession(data.company, data.user);
       closeRegistrationModal();
 
-      // Show onboarding card and route user directly to Data Sources upload
+      // Show onboarding card and route user directly to General Overview
       const onboardingCard = document.getElementById("onboarding-welcome-card");
       if (onboardingCard) onboardingCard.style.display = "block";
-      switchView("datasources");
+      switchView("dashboard");
+      loadAllDashboardData();
     } else {
       alert("Registration failed: " + data.error);
     }
@@ -2433,6 +2824,7 @@ async function handleRegistrationSubmit(e) {
   }
 }
 
+// The function below is for setting up workspace management triggers and dialog buttons
 function setupWorkspaceControls() {
   const newBtn = document.getElementById("btn-new-workspace");
   if (newBtn) {
@@ -2441,8 +2833,8 @@ function setupWorkspaceControls() {
 }
 
 // -------------------------------------------------------------
-// USER PROFILE AVATAR UPLOADER
-// -------------------------------------------------------------
+// This piece of code below deals with user profile avatar upload and custom image storage
+// The function below is for handling user profile avatar image selection and persistence
 function setupUserAvatarUpload() {
   const badge = document.getElementById("header-user-badge");
   const fileInput = document.getElementById("user-avatar-input");
@@ -2482,8 +2874,8 @@ function setupUserAvatarUpload() {
 }
 
 // -------------------------------------------------------------
-// GOOGLE SHEETS & UPLOAD TAB SWITCHER
-// -------------------------------------------------------------
+// This piece of code below deals with Google Sheets link importing and spreadsheet tab switching
+// The function below is for switching between Excel file upload and Google Sheets connection tabs
 function switchUploadTab(tab) {
   const fileTab = document.getElementById("tab-btn-file");
   const gsheetTab = document.getElementById("tab-btn-gsheet");
@@ -2503,6 +2895,7 @@ function switchUploadTab(tab) {
   }
 }
 
+// The function below is for fetching and importing spreadsheet data from a Google Sheets URL
 async function handleGoogleSheetsImport() {
   const input = document.getElementById("gsheet-url-input");
   const btn = document.getElementById("btn-fetch-gsheet");

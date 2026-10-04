@@ -4,6 +4,7 @@
  * file upload pipelines, schema mapping previews, and AI queries.
  */
 
+// This piece of code below deals with global application configuration and active workspace session state
 const API_BASE = ""; // Relative to host
 let currentCompanyId = localStorage.getItem("business_pilot_company_id") || localStorage.getItem("bizlens_company_id") || "";
 let currentCurrency = localStorage.getItem("business_pilot_currency") || localStorage.getItem("bizlens_currency") || "TZS";
@@ -12,13 +13,13 @@ let currentCompanyName = localStorage.getItem("business_pilot_company_name") || 
 let currentBusinessType = localStorage.getItem("business_pilot_business_type") || "Retail";
 let activeUploadedFilePath = null;
 
-// Chart Instances
+// This piece of code below deals with active Apache ECharts visualization instances
 let revTrendChart = null;
 let expenseDonutChart = null;
 let cashProjectionChart = null;
 let pnlBridgeChart = null;
 
-// Initialize on DOM load
+// This piece of code below deals with initializing application modules and event listeners upon DOM content loaded
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   setupUploadDropzone();
@@ -38,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 150);
   }
 
+  // The function below is for resizing all active chart instances on window or container resize
   function resizeAllCharts() {
     if (revTrendChart) revTrendChart.resize();
     if (expenseDonutChart) expenseDonutChart.resize();
@@ -57,10 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // -------------------------------------------------------------
-// FIGURE COUNT-UP ANIMATIONS (Page Enter & Scroll Observer)
-// -------------------------------------------------------------
+// This piece of code below deals with numerical figure count-up animations and scroll observation
 let figureObserver = null;
 
+// The function below is for parsing numerical figures, currency symbols, and formatted numbers for counter animations
 function parseFigure(str) {
   if (typeof str !== "string") str = String(str || "");
   const match = str.trim().match(/^([^0-9\-+]*)([-+]?[0-9][0-9,]*(?:\.[0-9]+)?)(.*)$/);
@@ -76,10 +78,12 @@ function parseFigure(str) {
   return { prefix, targetNum, decimals, hasCommas, suffix };
 }
 
+// The function below is for calculating the cubic ease-out animation curve for smooth transitions
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+// The function below is for animating numerical figures with smooth counting transitions
 function animateFigureCount(element, finalValue = null, duration = 1100) {
   if (!element) return;
 
@@ -112,6 +116,7 @@ function animateFigureCount(element, finalValue = null, duration = 1100) {
 
   const startTime = performance.now();
 
+  // The function below is for calculating and rendering each frame during the number counter animation
   function step(currentTime) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(1, elapsed / duration);
@@ -151,6 +156,7 @@ function animateFigureCount(element, finalValue = null, duration = 1100) {
   element._countAnimId = requestAnimationFrame(step);
 }
 
+// The function below is for triggering smooth counter animations on all metrics inside a container
 function animateFiguresInContainer(container, duration = 1100) {
   if (!container) return;
   const elements = container.querySelectorAll(".kpi-value, .count-figure, .kpi-sub span:first-child, #cash-unpaid-invoices, #cash-runway-countdown");
@@ -164,6 +170,7 @@ function animateFiguresInContainer(container, duration = 1100) {
   });
 }
 
+// The function below is for setting up an intersection observer to animate numbers when scrolled into view
 function setupFigureScrollObserver() {
   if (figureObserver) {
     figureObserver.disconnect();
@@ -206,6 +213,7 @@ function setupFigureScrollObserver() {
   refreshFigureObserver();
 }
 
+// The function below is for refreshing figure observer targets when new dynamic elements are rendered
 function refreshFigureObserver() {
   if (!figureObserver) return;
   document.querySelectorAll(".kpi-card, .kpi-value, .count-figure").forEach(el => {
@@ -214,8 +222,8 @@ function refreshFigureObserver() {
 }
 
 // -------------------------------------------------------------
-// NAVIGATION ROUTER
-// -------------------------------------------------------------
+// This piece of code below deals with sidebar navigation links, mobile drawer toggles, and view routing
+// The function below is for setting up sidebar navigation links, mobile drawer toggles, and view routing
 function setupNavigation() {
   const navItems = document.querySelectorAll(".nav-item");
   const sidebar = document.querySelector(".sidebar");
@@ -248,6 +256,7 @@ function setupNavigation() {
   });
 }
 
+// The function below is for switching between different dashboard views and sub-panels
 function switchView(viewName) {
   // Update sidebar active class
   document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
@@ -301,8 +310,8 @@ function switchView(viewName) {
 }
 
 // -------------------------------------------------------------
-// DATA LOADERS
-// -------------------------------------------------------------
+// This piece of code below deals with loading all primary dashboard metrics and overview data
+// The function below is for fetching and populating all overview metrics, charts, and activity data
 async function loadAllDashboardData() {
   try {
     const res = await fetch(`${API_BASE}/api/dashboard?company_id=${currentCompanyId}`);
@@ -313,6 +322,7 @@ async function loadAllDashboardData() {
   }
 }
 
+// The function below is for determining the currency symbol or prefix based on the currency code
 function getCurrencySymbol(curr) {
   const c = (curr || currentCurrency || "TZS").toUpperCase();
   const map = {
@@ -335,6 +345,7 @@ function getCurrencySymbol(curr) {
   return map[c] || c;
 }
 
+// The function below is for formatting numerical values into formatted currency strings with proper symbols
 function formatCurrency(val, currency = null) {
   const curr = currency || currentCurrency || "TZS";
   const sym = getCurrencySymbol(curr);
@@ -353,6 +364,7 @@ function formatCurrency(val, currency = null) {
   return sym.length > 1 ? `${sym} ${formatted}` : `${sym}${formatted}`;
 }
 
+// The function below is for rendering overview KPI summary cards, badges, and financial highlights
 function renderDashboard(data) {
   const { briefing, kpi_cards, inventory, cash, trends, company } = data;
 
@@ -505,8 +517,8 @@ function renderDashboard(data) {
 }
 
 // -------------------------------------------------------------
-// ECHARTS RENDERING (Modern Graphics System)
-// -------------------------------------------------------------
+// This piece of code below deals with rendering interactive charts with Apache ECharts
+// The function below is for rendering the monthly revenue trend chart using Apache ECharts
 function renderRevenueTrendChart(trends) {
   const chartDom = document.getElementById("chart-rev-trend");
   if (!chartDom) return;
@@ -686,6 +698,7 @@ function renderRevenueTrendChart(trends) {
   revTrendChart.setOption(option);
 }
 
+// The function below is for fetching and rendering the operating expenses breakdown donut chart
 async function loadAndRenderExpenseDonut() {
   const chartDom = document.getElementById("chart-expense-donut");
   if (!chartDom) return;
@@ -890,8 +903,8 @@ async function loadAndRenderExpenseDonut() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 03: ANALYTICS (P&L)
-// -------------------------------------------------------------
+// This piece of code below deals with financial analytics, P&L waterfall bridge, and profit margins
+// The function below is for loading deep financial analytics, P&L statements, and profit margins
 async function loadAnalyticsData() {
   try {
     const res = await fetch(`${API_BASE}/api/analytics?company_id=${currentCompanyId}`);
@@ -941,6 +954,7 @@ async function loadAnalyticsData() {
   }
 }
 
+// The function below is for rendering the P&L waterfall bridge chart showing net profit drivers
 function renderPnlBridgeChart(pnl) {
   const chartDom = document.getElementById("chart-pnl-bridge");
   if (!chartDom) return;
@@ -1051,8 +1065,8 @@ function renderPnlBridgeChart(pnl) {
 }
 
 // -------------------------------------------------------------
-// SCREEN 04: SALES
-// -------------------------------------------------------------
+// This piece of code below deals with sales transactions, revenue performance, and sales data tables
+// The function below is for loading sales transactions and populating the sales operations data table
 async function loadSalesData() {
   try {
     const res = await fetch(`${API_BASE}/api/sales?company_id=${currentCompanyId}&limit=50`);
@@ -1082,8 +1096,8 @@ async function loadSalesData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 05: CUSTOMERS
-// -------------------------------------------------------------
+// This piece of code below deals with customer analytics, lifetime value, and customer profitability
+// The function below is for loading customer accounts, lifetime values, and profitability rankings
 async function loadCustomersData() {
   try {
     const res = await fetch(`${API_BASE}/api/customers?company_id=${currentCompanyId}`);
@@ -1117,8 +1131,8 @@ async function loadCustomersData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 06: INVENTORY
-// -------------------------------------------------------------
+// This piece of code below deals with inventory valuation, stockout alerts, and stock movements
+// The function below is for loading inventory items, stock levels, valuations, and stockout warnings
 async function loadInventoryData() {
   try {
     const res = await fetch(`${API_BASE}/api/inventory?company_id=${currentCompanyId}`);
@@ -1170,8 +1184,8 @@ async function loadInventoryData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 07: EXPENSES
-// -------------------------------------------------------------
+// This piece of code below deals with business expenses and operating expenditure breakdowns
+// The function below is for loading business expense records and categorizing operational spend
 async function loadExpensesData() {
   try {
     const res = await fetch(`${API_BASE}/api/expenses?company_id=${currentCompanyId}`);
@@ -1254,8 +1268,8 @@ async function loadExpensesData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 08: CASH FLOW
-// -------------------------------------------------------------
+// This piece of code below deals with cash flow forecasting, liquidity metrics, and runway tracking
+// The function below is for loading cash flow forecasts, operational runway, and liquidity projections
 async function loadCashFlowData() {
   try {
     const res = await fetch(`${API_BASE}/api/cashflow?company_id=${currentCompanyId}`);
@@ -1406,8 +1420,8 @@ async function loadCashFlowData() {
 }
 
 // -------------------------------------------------------------
-// SCREEN 10: AI ANALYST
-// -------------------------------------------------------------
+// This piece of code below deals with the grounded AI Business Analyst interface and queries
+// The function below is for setting up AI Business Analyst query input listeners and prompt suggestions
 function setupAISearch() {
   const btn = document.getElementById("btn-submit-ai");
   const input = document.getElementById("ai-query-input");
@@ -1427,6 +1441,7 @@ function setupAISearch() {
 
 let currentAiThinkingInterval = null;
 
+// The function below is for tokenizing HTML into words and tags for smooth AI streaming output
 function tokenizeHtmlForStreaming(html) {
   const tokens = [];
   let i = 0;
@@ -1457,6 +1472,7 @@ function tokenizeHtmlForStreaming(html) {
   return tokens;
 }
 
+// The function below is for streaming formatted AI responses word-by-word into the message container
 async function streamHtmlWords(html, targetEl) {
   if (!targetEl) return;
   targetEl.innerHTML = "";
@@ -1476,6 +1492,7 @@ async function streamHtmlWords(html, targetEl) {
   }
 }
 
+// The function below is for toggling the visibility of Gemini AI model reasoning steps
 function toggleGeminiThoughts(header) {
   const body = header.nextElementSibling;
   const arrow = header.querySelector("#gemini-accordion-arrow");
@@ -1489,6 +1506,7 @@ function toggleGeminiThoughts(header) {
   }
 }
 
+// The function below is for copying the AI analyst response text to the user's clipboard
 function copyGeminiAnswer() {
   const text = window._latestGeminiAnswerText || "";
   if (!text) return;
@@ -1504,12 +1522,14 @@ function copyGeminiAnswer() {
   });
 }
 
+// The function below is for handling user rating feedback on AI analyst answers
 function rateGeminiFeedback(btn, type) {
   const siblings = btn.parentElement.querySelectorAll(".gemini-tool-btn");
   siblings.forEach(s => s.classList.remove("active"));
   btn.classList.add("active");
 }
 
+// The function below is for sending user business questions to the grounded AI Business Analyst API
 async function askAI(question) {
   const box = document.getElementById("ai-answer-box");
   const input = document.getElementById("ai-query-input");
@@ -1726,6 +1746,7 @@ async function askAI(question) {
 // -------------------------------------------------------------
 let forecastChartInstance = null;
 
+// The function below is for fetching predictive revenue projections and stockout forecasts
 async function loadForecastsData() {
   try {
     const res = await fetch(`${API_BASE}/api/forecasts?company_id=${currentCompanyId}`);
@@ -1776,6 +1797,7 @@ async function loadForecastsData() {
   }
 }
 
+// The function below is for rendering the predictive forecast trend chart with confidence bands
 function renderForecastChart(revFc) {
   const chartDom = document.getElementById("chart-forecast-bands");
   if (!chartDom) return;
@@ -1981,8 +2003,8 @@ function renderForecastChart(revFc) {
 }
 
 // -------------------------------------------------------------
-// SCREEN 11: ALERTS CENTER
-// -------------------------------------------------------------
+// This piece of code below deals with early warning risk alerts and anomaly notifications
+// The function below is for loading early warning business alerts and risk notifications
 async function loadAlertsData(severity = "ALL") {
   try {
     const res = await fetch(`${API_BASE}/api/alerts?company_id=${currentCompanyId}&severity=${severity}`);
@@ -2027,10 +2049,12 @@ async function loadAlertsData(severity = "ALL") {
   }
 }
 
+// The function below is for filtering active alerts by severity level
 function filterAlerts(severity) {
   loadAlertsData(severity);
 }
 
+// The function below is for configuring executive management report generation options
 function loadReportsData() {
   const compId = currentCompanyId || "company-abc-supermarket-001";
   const pdfLink = document.getElementById("report-pdf-link");
@@ -2044,8 +2068,8 @@ function loadReportsData() {
 }
 
 // -------------------------------------------------------------
-// SCREENS 13, 14, 15: UPLOAD & DATA MAPPING
-// -------------------------------------------------------------
+// This piece of code below deals with spreadsheet upload drag-and-drop zones and schema mapping review
+// The function below is for configuring drag-and-drop spreadsheet upload zones
 function setupUploadDropzone() {
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
@@ -2087,6 +2111,7 @@ function setupUploadDropzone() {
   }
 }
 
+// The function below is for uploading spreadsheet files to the backend ingestion pipeline
 function handleFileUpload(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -2119,6 +2144,7 @@ function handleFileUpload(file) {
 
 let currentUploadCurrencyInfo = null;
 
+// The function below is for displaying floating toast notification messages to the user
 function showToastNotification(message, title = "Currency Converted & Mapped", type = "info", duration = 8500) {
   let container = document.getElementById("toast-container");
   if (!container) {
@@ -2161,6 +2187,7 @@ function showToastNotification(message, title = "Currency Converted & Mapped", t
   }
 }
 
+// The function below is for rendering the spreadsheet column mapping review dialog
 function renderMappingReview(uploadResult) {
   const mappingCard = document.getElementById("mapping-card");
   const tbody = document.getElementById("mapping-table-body");
@@ -2250,6 +2277,7 @@ function renderMappingReview(uploadResult) {
   document.getElementById("progress-status-text").innerText = `Detected ${uploadResult.inspection.sheet_count} sheet(s). Ready to import.`;
 }
 
+// The function below is for confirming schema mappings and executing final data import
 async function confirmImport() {
   if (!activeUploadedFilePath) return;
 
@@ -2320,8 +2348,8 @@ async function confirmImport() {
 }
 
 // -------------------------------------------------------------
-// DATA SOURCES & SPREADSHEET MANAGER
-// -------------------------------------------------------------
+// This piece of code below deals with connected data sources, files, and import job history
+// The function below is for loading connected spreadsheets, data sources, and import job history
 async function loadDataSourcesList() {
   const countBadge = document.getElementById("uploaded-files-count");
   const emptyBox = document.getElementById("uploaded-sources-empty");
@@ -2395,8 +2423,8 @@ async function loadDataSourcesList() {
 }
 
 // -------------------------------------------------------------
-// 1-CLICK DEMO LOADER
-// -------------------------------------------------------------
+// This piece of code below deals with demo data loading for interactive exploration
+// The function below is for configuring the demo data exploration button for new users
 function setupDemoButton() {
   const btn = document.getElementById("btn-quick-sample");
   if (btn) {
@@ -2439,8 +2467,8 @@ function setupDemoButton() {
 }
 
 // -------------------------------------------------------------
-// WORKSPACE & REGISTRATION MANAGEMENT
-// -------------------------------------------------------------
+// This piece of code below deals with workspace registration, user session state, and onboarding modal
+// The function below is for clearing local storage session data and resetting the workspace state
 function clearLocalSession() {
   document.documentElement.classList.remove("has-workspace");
   currentCompanyId = "";
@@ -2478,6 +2506,7 @@ function clearLocalSession() {
   if (dashGreeting) dashGreeting.innerText = "Good morning";
 }
 
+// The function below is for validating the user session and directing unregistered users to registration
 async function checkAuthSession() {
   try {
     if (!currentCompanyId || !currentCompanyId.trim()) {
@@ -2529,6 +2558,7 @@ async function checkAuthSession() {
   }
 }
 
+// The function below is for applying active business workspace details and currency to the session
 function applyCompanySession(comp, user) {
   if (!comp) return;
   currentCompanyId = comp.id;
@@ -2611,6 +2641,7 @@ function applyCompanySession(comp, user) {
   loadReportsData();
 }
 
+// The function below is for applying industry-tailored terminology, KPIs, and layouts
 function applyIndustryCustomizations(businessType) {
   const isRetail = (businessType || "").toLowerCase().includes("retail") || businessType === "Supermarket";
 
@@ -2645,6 +2676,7 @@ function applyIndustryCustomizations(businessType) {
   }
 }
 
+// The function below is for initializing industry preview cards in the registration modal
 function setupIndustryPreview() {
   const bTypeSelect = document.getElementById("reg-business-type");
   const previewTitle = document.getElementById("preview-industry-title");
@@ -2688,6 +2720,7 @@ function setupIndustryPreview() {
     }
   };
 
+  // The function below is for updating industry preview features when selecting a business type
   function updatePreview() {
     const val = bTypeSelect.value || "Retail";
     const profile = industryProfiles[val] || industryProfiles["Other"];
@@ -2702,6 +2735,7 @@ function setupIndustryPreview() {
   updatePreview();
 }
 
+// The function below is for opening the business registration and onboarding modal
 function openRegistrationModal(canCancel = true) {
   const modal = document.getElementById("registration-modal");
   const cancelBtn = document.getElementById("btn-close-modal");
@@ -2714,6 +2748,7 @@ function openRegistrationModal(canCancel = true) {
   }
 }
 
+// The function below is for closing the business registration and onboarding modal
 function closeRegistrationModal() {
   const modal = document.getElementById("registration-modal");
   if (modal) {
@@ -2722,6 +2757,7 @@ function closeRegistrationModal() {
   }
 }
 
+// The function below is for submitting the registration form to create a new business workspace
 async function handleRegistrationSubmit(e) {
   e.preventDefault();
   const compName = document.getElementById("reg-company-name").value.trim();
@@ -2788,6 +2824,7 @@ async function handleRegistrationSubmit(e) {
   }
 }
 
+// The function below is for setting up workspace management triggers and dialog buttons
 function setupWorkspaceControls() {
   const newBtn = document.getElementById("btn-new-workspace");
   if (newBtn) {
@@ -2796,8 +2833,8 @@ function setupWorkspaceControls() {
 }
 
 // -------------------------------------------------------------
-// USER PROFILE AVATAR UPLOADER
-// -------------------------------------------------------------
+// This piece of code below deals with user profile avatar upload and custom image storage
+// The function below is for handling user profile avatar image selection and persistence
 function setupUserAvatarUpload() {
   const badge = document.getElementById("header-user-badge");
   const fileInput = document.getElementById("user-avatar-input");
@@ -2837,8 +2874,8 @@ function setupUserAvatarUpload() {
 }
 
 // -------------------------------------------------------------
-// GOOGLE SHEETS & UPLOAD TAB SWITCHER
-// -------------------------------------------------------------
+// This piece of code below deals with Google Sheets link importing and spreadsheet tab switching
+// The function below is for switching between Excel file upload and Google Sheets connection tabs
 function switchUploadTab(tab) {
   const fileTab = document.getElementById("tab-btn-file");
   const gsheetTab = document.getElementById("tab-btn-gsheet");
@@ -2858,6 +2895,7 @@ function switchUploadTab(tab) {
   }
 }
 
+// The function below is for fetching and importing spreadsheet data from a Google Sheets URL
 async function handleGoogleSheetsImport() {
   const input = document.getElementById("gsheet-url-input");
   const btn = document.getElementById("btn-fetch-gsheet");

@@ -8,7 +8,6 @@ import re
 from typing import Dict, List, Any, Optional, Tuple
 from database.db import get_connection, generate_uuid
 
-
 # Target Schema Dictionaries with common aliases
 STANDARD_FIELDS = {
     "sales": {
@@ -59,21 +58,21 @@ STANDARD_FIELDS = {
 
 NUMERIC_FIELDS = {"amount", "total_amount", "unit_price", "cost_price", "quantity", "stock_quantity", "unit_cost", "selling_price", "discount", "tax"}
 
-
+# The class below is for intelligent column schema mapping and entity classification
 class SchemaMapper:
     """Intelligent column mapping and entity classifier."""
 
+    # The function below is for normalizing column headers into clean lowercase snake_case
     @staticmethod
     def normalize_header(header: str) -> str:
-        """Normalizes a column header: lowercase, alphanumeric and underscores."""
         s = str(header).lower().strip()
         s = re.sub(r"[^\w\s]", "", s)
         s = re.sub(r"\s+", "_", s)
         return s
 
+    # The function below is for stripping currency suffixes from column names
     @staticmethod
     def strip_currency_suffix(col: str) -> str:
-        """Strips common currency suffixes e.g. amount_tzs -> amount."""
         s = col.lower().strip()
         currencies = ["_tzs", "_usd", "_kes", "_eur", "_gbp", "_zar", "_ngn", "_inr", "_cad", "_tsh", "_shs"]
         for curr in currencies:
@@ -81,9 +80,9 @@ class SchemaMapper:
                 return s[:-len(curr)]
         return s
 
+    # The function below is for detecting if a column name represents an identifier or code
     @staticmethod
     def is_identifier_column(col: str) -> bool:
-        """Detects if a column name represents an ID or reference code."""
         s = col.lower().strip()
         return (
             s.endswith("_id")
@@ -96,6 +95,7 @@ class SchemaMapper:
             or s.startswith("id_")
         )
 
+    # The function below is for detecting whether a spreadsheet represents Sales, Expenses, Inventory, or Customers
     @classmethod
     def detect_entity(cls, columns: List[str], sheet_name: Optional[str] = None) -> Tuple[str, float]:
         """
@@ -137,6 +137,7 @@ class SchemaMapper:
         confidence = min(0.99, max(0.50, round(entity_scores[best_entity] / 6.0, 2)))
         return best_entity, confidence
 
+    # The function below is for mapping raw spreadsheet headers to standard system fields with confidence scoring
     @classmethod
     def map_columns(cls, columns: List[str], target_entity: Optional[str] = None, sheet_name: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -157,12 +158,10 @@ class SchemaMapper:
             is_id = cls.is_identifier_column(norm_col)
 
             for sys_field, aliases in field_definitions.items():
-                # Disallow identifier columns from matching numeric fields
                 if is_id and sys_field in NUMERIC_FIELDS:
                     continue
 
                 score = 0.0
-                # Exact match against raw normalized or currency-stripped
                 if norm_col in aliases or stripped_col in aliases:
                     score = 0.99
                 elif any(norm_col.startswith(a) or stripped_col.startswith(a) for a in aliases):
@@ -170,7 +169,6 @@ class SchemaMapper:
                 elif any(norm_col.endswith(a) or stripped_col.endswith(a) for a in aliases):
                     score = 0.88
                 elif any(a in norm_col or a in stripped_col for a in aliases):
-                    # Only allow substring match if length is substantial
                     matching_alias = next(a for a in aliases if a in norm_col or a in stripped_col)
                     if len(matching_alias) >= 4:
                         score = 0.75
@@ -178,7 +176,6 @@ class SchemaMapper:
                 if score >= 0.70:
                     candidates.append((score, raw_col, sys_field))
 
-        # Sort candidates by score descending
         candidates.sort(key=lambda x: x[0], reverse=True)
 
         mapped_fields = {}
@@ -225,6 +222,7 @@ class SchemaMapper:
             "ambiguities": ambiguities,
         }
 
+    # The function below is for saving user-confirmed column mappings into the data_mappings database table
     @staticmethod
     def save_confirmed_mappings(data_source_id: str, mappings: Dict[str, Dict[str, Any]]) -> None:
         """Saves user-confirmed column mappings into data_mappings table."""

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-
+# This piece of code below defines the Company entity model representing business tenants
 @dataclass
 class Company:
     id: str
@@ -21,7 +21,7 @@ class Company:
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
-
+# This piece of code below defines the Customer entity model for CRM and accounts receivable
 @dataclass
 class Customer:
     id: str
@@ -36,7 +36,7 @@ class Customer:
     payment_terms: int = 0 # days
     created_at: Optional[str] = None
 
-
+# This piece of code below defines the Product entity model for inventory catalog items
 @dataclass
 class Product:
     id: str
@@ -53,7 +53,7 @@ class Product:
     is_active: bool = True
     created_at: Optional[str] = None
 
-
+# This piece of code below defines the InventoryMovement model for stock movements and valuation
 @dataclass
 class InventoryMovement:
     id: str
@@ -68,7 +68,7 @@ class InventoryMovement:
     movement_date: Optional[str] = None
     created_at: Optional[str] = None
 
-
+# This piece of code below defines the SaleItem model representing line items in an invoice
 @dataclass
 class SaleItem:
     id: str
@@ -82,7 +82,7 @@ class SaleItem:
     cost_price: float = 0.0
     profit: float = 0.0
 
-
+# This piece of code below defines the Sale invoice model for revenue transactions
 @dataclass
 class Sale:
     id: str
@@ -101,7 +101,7 @@ class Sale:
     created_by: Optional[str] = None
     items: List[SaleItem] = field(default_factory=list)
 
-
+# This piece of code below defines the Payment model for recording incoming cash flows
 @dataclass
 class Payment:
     id: str
@@ -114,7 +114,7 @@ class Payment:
     reference_number: Optional[str] = None
     status: str = "Completed"
 
-
+# This piece of code below defines the Expense model for recording operating costs and OPEX
 @dataclass
 class Expense:
     id: str
@@ -129,7 +129,7 @@ class Expense:
     payment_method: str = "Bank"
     status: str = "Paid"
 
-
+# This piece of code below defines the Alert model for financial health and risk monitoring
 @dataclass
 class Alert:
     id: str

@@ -10,9 +10,11 @@ from datetime import datetime
 from typing import Dict, List, Any, Tuple
 
 
+# The class below is for running pre-flight data audits and cleaning spreadsheet values
 class DataQualityAuditor:
     """Pre-flight quality auditor and data cleaner."""
 
+    # The function below is for parsing currency strings and multipliers into standard numeric floats
     @staticmethod
     def clean_currency(val: Any) -> float:
         """Parses currency strings like '$1,200.50', 'TZS 45,000', '226M', '1.200.000,50' into float."""
@@ -74,6 +76,7 @@ class DataQualityAuditor:
         except ValueError:
             return 0.0
 
+    # The function below is for parsing various date formats into standard ISO YYYY-MM-DD
     @staticmethod
     def parse_flexible_date(val: Any) -> Tuple[bool, str]:
         """
@@ -87,7 +90,6 @@ class DataQualityAuditor:
             return True, val.strftime("%Y-%m-%d")
 
         s = str(val).strip()
-        # Formats to attempt
         formats = [
             "%Y-%m-%d",
             "%Y-%m-%d %H:%M:%S",
@@ -107,13 +109,13 @@ class DataQualityAuditor:
             except ValueError:
                 continue
 
-        # Try pandas to_datetime fallback
         try:
             dt = pd.to_datetime(s)
             return True, dt.strftime("%Y-%m-%d")
         except Exception:
             return False, s
 
+    # The function below is for auditing and cleaning an entire DataFrame before database ingestion
     @classmethod
     def audit_and_clean_dataframe(
         cls, df: pd.DataFrame, mapping_spec: Dict[str, str], entity_type: str = "sales"

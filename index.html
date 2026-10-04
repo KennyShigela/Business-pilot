@@ -2,15 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Business Pilot — Business Operating System</title>
   <link rel="stylesheet" href="/styles.css">
+  <script>
+    (function() {
+      try {
+        var cid = localStorage.getItem("business_pilot_company_id") || localStorage.getItem("bizlens_company_id");
+        if (cid && cid.trim()) {
+          document.documentElement.classList.add("has-workspace");
+        }
+      } catch (e) {}
+    })();
+  </script>
   <!-- Apache ECharts CDN for rich financial & time series visualization -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 </head>
 <body>
   <div class="app-container">
-    <!-- Persistent Left Sidebar -->
+    <!-- This piece of code below deals with the persistent left navigation sidebar and menu links -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo-badge">
@@ -70,10 +80,10 @@
 
       <div class="sidebar-footer">
         <div class="company-chip">
-          <div class="company-avatar" id="sidebar-company-avatar">L</div>
+          <div class="company-avatar" id="sidebar-company-avatar">B</div>
           <div class="company-meta">
-            <div class="name" id="sidebar-company-name">LexCorp</div>
-            <div class="sub" id="sidebar-company-sub">Enterprise · TZS</div>
+            <div class="name" id="sidebar-company-name">My Business</div>
+            <div class="sub" id="sidebar-company-sub">Workspace · USD</div>
           </div>
         </div>
       </div>
@@ -85,7 +95,8 @@
     <!-- Main Content Area -->
     <div class="main-wrapper">
       <!-- Top Header -->
-      <header class="top-header">
+      <!-- This piece of code below deals with the top header navigation bar, search input, and user workspace controls -->
+    <header class="top-header">
         <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;">
           <button class="btn-mobile-menu" id="btn-mobile-menu" aria-label="Toggle navigation menu" title="Menu">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
@@ -102,19 +113,21 @@
             <span class="btn-label">Register Company</span>
           </button>
           <div class="user-badge" id="header-user-badge" title="Click to upload profile photo">
-            <div class="user-avatar" id="header-user-avatar">A</div>
-            <span id="header-user-name">Alex</span>
+            <div class="user-avatar" id="header-user-avatar">U</div>
+            <span id="header-user-name">User</span>
             <input type="file" id="user-avatar-input" accept="image/*" style="display:none;">
           </div>
         </div>
       </header>
 
       <!-- Main Body -->
+      <!-- This piece of code below deals with the main application workspace container and dynamic view panels -->
       <main class="content-body">
         
         <!-- ============================================== -->
         <!-- SCREEN 02: EXECUTIVE DASHBOARD (OVERVIEW)       -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with the general overview dashboard, financial KPI cards, and revenue chart -->
         <section id="view-dashboard" class="view-panel active">
           <div class="view-header">
             <div class="view-title-group">
@@ -130,37 +143,37 @@
           <div class="kpi-grid">
             <div class="kpi-card">
               <div class="kpi-label">Revenue</div>
-              <div class="kpi-value" id="kpi-rev-val">TZS 31.7M</div>
+              <div class="kpi-value" id="kpi-rev-val">0</div>
               <div class="kpi-sub">
-                <span class="trend-up" id="kpi-rev-growth">↑ 1.8%</span>
-                <span class="trend-sub">vs last month</span>
+                <span class="trend-up" id="kpi-rev-growth">0%</span>
+                <span class="trend-sub">vs last period</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Net Profit</div>
-              <div class="kpi-value" id="kpi-profit-val">TZS -44.4M</div>
+              <div class="kpi-value" id="kpi-profit-val">0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-profit-margin">Margin: -139%</span>
+                <span class="trend-up" id="kpi-profit-margin">Margin: 0%</span>
                 <span class="trend-sub">post-OPEX</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Expenses</div>
-              <div class="kpi-value" id="kpi-exp-val">TZS 52.8M</div>
+              <div class="kpi-value" id="kpi-exp-val">0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-exp-growth">↑ 6.1%</span>
-                <span class="trend-sub">higher OPEX</span>
+                <span class="trend-up" id="kpi-exp-growth">0%</span>
+                <span class="trend-sub">OPEX</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label">Cash Position</div>
-              <div class="kpi-value" id="kpi-cash-val">TZS -29.3M</div>
+              <div class="kpi-value" id="kpi-cash-val">0</div>
               <div class="kpi-sub">
-                <span class="trend-down" id="kpi-cash-runway">⚠ 0 days runway</span>
-                <span class="trend-sub">runway cliff</span>
+                <span class="trend-up" id="kpi-cash-runway">Runway: Awaiting Data</span>
+                <span class="trend-sub">cash runway</span>
               </div>
             </div>
           </div>
@@ -181,7 +194,7 @@
             <div class="chart-card">
               <div class="card-header">
                 <div class="card-title">Business Performance: Revenue & Profit Trend</div>
-                <div class="trend-sub">Trailing Months (TZS)</div>
+                <div class="trend-sub" id="chart-rev-trend-sub">Performance Trend</div>
               </div>
               <div id="chart-rev-trend" class="chart-container"></div>
             </div>
@@ -210,6 +223,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 03: ANALYTICS (P&L & MARGINS)            -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with executive financial analytics, profit & loss waterfall bridge, and margin breakdown -->
         <section id="view-analytics" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -230,7 +244,7 @@
               <thead>
                 <tr>
                   <th>Financial Line Item</th>
-                  <th>Amount (TZS)</th>
+                  <th>Amount (<span class="currency-label" id="pnl-currency-label">TZS</span>)</th>
                   <th>% of Revenue</th>
                   <th>Classification</th>
                 </tr>
@@ -245,6 +259,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 04: SALES (OPERATIONAL ORDERS)          -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with sales transactions, revenue performance filters, and sales record tables -->
         <section id="view-sales" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -279,6 +294,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 05: CUSTOMERS (PROFITABILITY & WHALES)  -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with customer portfolio management, customer lifetime value, and profitability tables -->
         <section id="view-customers" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -310,6 +326,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 06: INVENTORY (HEALTH & DEAD STOCK)     -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with inventory stock tracking, valuation metrics, and stockout warning indicators -->
         <section id="view-inventory" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -360,6 +377,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 07: EXPENSES                            -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with operating expenses tracking, category breakdown donut chart, and vendor expenses -->
         <section id="view-expenses" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -441,6 +459,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 08: CASH FLOW                           -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with cash flow forecasting, net cash burn, liquidity projection, and runway tracking -->
         <section id="view-cashflow" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -479,6 +498,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 10: AI ANALYST                          -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with the grounded AI Business Analyst conversational interface and intelligence briefing -->
         <section id="view-ai-analyst" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -523,6 +543,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 09: FORECASTS                           -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with predictive revenue forecasting, stockout risk horizon, and confidence band charts -->
         <section id="view-forecasts" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -580,6 +601,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 11: ALERTS CENTER                       -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with early warning risk alerts, anomaly monitors, and severity-filtered notifications -->
         <section id="view-alerts" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -600,6 +622,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 12: MANAGEMENT REPORTS                  -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with automated management board pack report generation and PDF/HTML downloads -->
         <section id="view-reports" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -650,6 +673,7 @@
         <!-- ============================================== -->
         <!-- SCREEN 13, 14, 15: DATA SOURCES & AI MAPPING   -->
         <!-- ============================================== -->
+        <!-- This piece of code below deals with spreadsheet ingestion, drag-and-drop file upload, and Google Sheets URL importer -->
         <section id="view-datasources" class="view-panel">
           <div class="view-header">
             <div class="view-title-group">
@@ -761,7 +785,7 @@
             </div>
           </div>
 
-          <!-- Mapping Review Card (Revealed after upload) -->
+          <!-- This piece of code below deals with the spreadsheet column mapping review card and schema confirmation -->
           <div class="mapping-card" id="mapping-card" style="display:none;">
             <div class="card-header">
               <div class="card-title">Review Data Mapping</div>
@@ -776,6 +800,29 @@
             </div>
             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;" id="progress-status-text">
               Ready to import.
+            </div>
+
+            <!-- Currency Detection & Auto-Conversion Banner -->
+            <div id="currency-conversion-banner" style="display:none; margin-bottom:1.25rem; padding:0.9rem 1.1rem; border-radius:8px; border:1px solid #bfdbfe; background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);">
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+                <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                  <div style="font-size:1.5rem; line-height:1; flex-shrink:0;" id="currency-conversion-icon">💱</div>
+                  <div>
+                    <div style="font-size:0.92rem; font-weight:700; color:#1e3a8a; display:flex; align-items:center; gap:0.5rem;" id="currency-conversion-title">
+                      Auto-Converting Currency
+                      <span id="currency-conversion-badge" class="badge-status badge-healthy" style="font-size:0.72rem; padding:2px 8px;">USD ➔ TZS</span>
+                    </div>
+                    <div style="font-size:0.82rem; color:#334155; margin-top:2px;" id="currency-conversion-desc">
+                      Monetary values detected in spreadsheet will automatically convert into your registered business currency.
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:0.35rem 0.65rem;" id="currency-rate-input-container">
+                  <label for="currency-exchange-rate-input" style="font-size:0.78rem; font-weight:600; color:#475569; margin:0;" id="currency-rate-label">Rate (1 USD =):</label>
+                  <input type="number" id="currency-exchange-rate-input" step="any" style="width:110px; padding:0.25rem 0.4rem; border:1px solid #94a3b8; border-radius:4px; font-size:0.85rem; font-weight:700; color:#0f172a; text-align:right;" title="Edit conversion rate if needed" />
+                  <span style="font-size:0.78rem; font-weight:700; color:#2563eb;" id="currency-rate-unit">TZS</span>
+                </div>
+              </div>
             </div>
 
             <div class="data-table-container">
@@ -796,7 +843,7 @@
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
-              <button class="btn-secondary" onclick="document.getElementById('mapping-card').style.display='none'">Cancel</button>
+              <button class="btn-secondary" onclick="document.getElementById('mapping-card').style.display='none'; const b=document.getElementById('currency-conversion-banner'); if(b) b.style.display='none';">Cancel</button>
               <button class="btn-primary" id="btn-confirm-import">Accept & Import Data</button>
             </div>
           </div>
@@ -834,10 +881,8 @@
     </div>
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: REGISTRATION & WORKSPACE SETUP          -->
-  <!-- ============================================== -->
-  <div id="registration-modal" class="modal-overlay" style="display:none;">
+  <!-- This piece of code below deals with the company registration and onboarding modal popup dialog -->
+  <div id="registration-modal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
         <h2>Register Your Business Workspace</h2>

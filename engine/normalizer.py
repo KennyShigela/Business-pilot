@@ -6,32 +6,30 @@ and suggests merges with confidence scores without destructive silent merges.
 import re
 from typing import List, Dict, Any, Tuple
 
-
+# The class below is for normalizing entity variations and suggesting duplicate merges
 class EntityNormalizer:
     """Detects entity variations and suggests deduplication."""
 
+    # The function below is for simplifying entity names for fuzzy comparison
     @staticmethod
     def simplify_name(name: str) -> str:
-        """Strips punctuation, lowercases, and removes generic business/unit suffixes."""
         s = str(name).lower().strip()
         s = re.sub(r"[^\w\s]", " ", s)
         s = re.sub(r"\s+", " ", s).strip()
-        # Remove common business suffixes for comparison
         suffixes = ["ltd", "limited", "inc", "corp", "co", "plc", "llc", "group"]
         words = s.split()
         filtered = [w for w in words if w not in suffixes]
         return " ".join(filtered) if filtered else s
 
+    # The function below is for calculating token-based string similarity between entity names
     @classmethod
     def calculate_similarity(cls, str1: str, str2: str) -> float:
-        """Token-based Jaccard and Levenshtein approximation."""
         s1 = cls.simplify_name(str1)
         s2 = cls.simplify_name(str2)
 
         if s1 == s2:
             return 1.0
 
-        # Substring / abbreviation check
         if s1 in s2 or s2 in s1:
             return 0.90
 
@@ -44,12 +42,9 @@ class EntityNormalizer:
         jaccard = intersection / max(1, union)
         return round(jaccard, 2)
 
+    # The function below is for scanning unique names and finding potential duplicate records
     @classmethod
     def find_potential_merges(cls, names: List[str], threshold: float = 0.70) -> List[Dict[str, Any]]:
-        """
-        Scans a list of unique names (products, customers, vendors)
-        and detects potential duplicate representations.
-        """
         suggestions = []
         unique_names = list(set(filter(None, names)))
         n = len(unique_names)
